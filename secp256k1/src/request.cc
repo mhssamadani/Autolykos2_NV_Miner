@@ -390,7 +390,7 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 	}
 
 	// check if we need to change anything, only then lock info mutex
-	if (mesChanged || boundChanged || PboundChanged || HChanged || !(oldreq->len))
+	if (mesChanged || boundChanged || HChanged || !(oldreq->len))
 	{
 		info->info_mutex.lock();
 
