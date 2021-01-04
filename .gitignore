@@ -2,6 +2,5 @@
 *.a
 *lib
 *.out
-*.sh
 *.json
 *.log

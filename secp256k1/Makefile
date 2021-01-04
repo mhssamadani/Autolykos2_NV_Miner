@@ -15,9 +15,7 @@ LIBS = -L/usr/local/lib -lcurl -I/usr/local/include -lssl -lcrypto -lnvidia-ml
 
 # stub config content
 CONFIG = '{ \
-			 "mnemonic": "do not disclose the secret seed", \
-			 "node": "http://188.166.89.71:9052", \
-			 "keepPrehash": false \
+			 "node": "http://188.166.89.71:9052" \
 		 }'
 
 # compiler settings
