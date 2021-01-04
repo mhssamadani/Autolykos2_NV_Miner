@@ -23,23 +23,6 @@ void InitMining(
 __global__ void BlockMining(
     // boundary for puzzle
     const uint32_t * bound,
-    // data: pk || mes || w || padding || x || sk || ctx
-    const uint32_t * data,
-    // nonce base
-    const uint64_t base,
-    // precalculated hashes
-    const uint32_t * hashes,
-    // results
-    uint32_t * res,
-    // indices of valid solutions
-    uint32_t * valid,
- 	uint32_t *count
-);
-
-// block mining iteration
-__global__ void BlockMiningV22(
-    // boundary for puzzle
-    const uint32_t * bound,
     // data:  mes  ctx
     const uint32_t * data,
     // nonce base

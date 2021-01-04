@@ -537,10 +537,7 @@ int GetLatestBlock(
 ////////////////////////////////////////////////////////////////////////////////
 int PostPuzzleSolution(
     const char * to,
-    const char * pkstr,
-    const uint8_t * w,
-    const uint8_t * nonce,
-    const uint8_t * d
+    const uint8_t * nonce
 )
 {
     uint32_t len;
@@ -548,19 +545,32 @@ int PostPuzzleSolution(
 
     char request[JSON_CAPACITY];
 
+
+	char pkstrTmp[PK_SIZE_4+1] = "026A04AB98D9E4774AD806E302DDDEB63BEA16B5CB5F223EE77478E861BB583EB3";
+	uint8_t wTmp[PK_SIZE_8];
+	memset(wTmp, 0, sizeof(uint8_t) * PK_SIZE_8);
+	wTmp[0] = 2;
+	wTmp[PK_SIZE_8 - 1] = 2;
+	uint32_t dTmp[NUM_SIZE_32];
+	memset(dTmp, 0, sizeof(uint32_t) * NUM_SIZE_32);
+	dTmp[0] = 222;
+
     //========================================================================//
     //  Form message to post
     //========================================================================//
+
+
+  /*  
     strcpy(request + pos, "{\"pk\":\"");
     pos += 7;
 
-    strcpy(request + pos, pkstr);
+    strcpy(request + pos, pkstrTmp);
     pos += PK_SIZE_4;
 
    strcpy(request + pos, "\",\"w\":\"");
     pos += 7;
 
-    BigEndianToHexStr(w, PK_SIZE_8, request + pos);
+    BigEndianToHexStr(wTmp, PK_SIZE_8, request + pos);
     pos += PK_SIZE_4;
 
     strcpy(request + pos, "\",\"n\":\"");
@@ -572,16 +582,25 @@ int PostPuzzleSolution(
     strcpy(request + pos, "\",\"d\":");
     pos += 6;
 
-   LittleEndianOf256ToDecStr(d, request + pos, &len);
+   LittleEndianOf256ToDecStr((uint8_t *)dTmp, request + pos, &len);
    pos += len;
 
     strcpy(request + pos, "e0}\0");
-    // strcpy(request + pos, "\"}\0");
+    */
+
+    strcpy(request + pos, "{\"n\":\"");
+    pos += 6;
+
+    LittleEndianToHexStr(nonce, NONCE_SIZE_8, request + pos);
+    pos += NONCE_SIZE_4;
+
+    strcpy(request + pos, "\"}\0");
+
+
 
     VLOG(1) << "POST request " << request;
-   //LOG(INFO) << "POST request " << request;
+    LOG(INFO) << "POST request " << request;
 
-//return 1;
 
     //========================================================================//
     //  POST request

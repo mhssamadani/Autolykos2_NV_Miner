@@ -11,12 +11,9 @@
 // read config file
 int ReadConfig(
     const char * fileName,
-    uint8_t * sk,
-    char * skstr,
     char * from,
     char * to,
-    char * pool,
-    int * keep
+    char * pool
 );
 
 // print public key

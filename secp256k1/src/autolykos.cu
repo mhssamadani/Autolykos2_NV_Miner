@@ -12,7 +12,6 @@
 #endif
 #endif
 
-#include "bip39/include/bip39/bip39.h"
 #include "../include/cryptography.h"
 #include "../include/definitions.h"
 #include "../include/easylogging++.h"
@@ -80,13 +79,13 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
         {        
             LOG(INFO) << "Some GPU"
             << " found and trying to POST a solution:\n" << logstr;
-            PostPuzzleSolution(info->to, info->pkstr, share.pubkey_w, (uint8_t*)&share.nonce, share.d);
+            PostPuzzleSolution(info->to, (uint8_t*)&share.nonce);
         }
         else
         {
             LOG(INFO) << "Some GPU"
             << " found and trying to POST a share to the pool:\n" << logstr;
-            PostPuzzleSolution(info->pool, info->pkstr, share.pubkey_w, (uint8_t*)&share.nonce, share.d);
+            PostPuzzleSolution(info->pool, (uint8_t*)&share.nonce);
         }
         
 
@@ -122,15 +121,9 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     // autolykos variables
     uint8_t bound_h[NUM_SIZE_8];
     uint8_t mes_h[NUM_SIZE_8];
-    uint8_t sk_h[NUM_SIZE_8];
-    uint8_t pk_h[PK_SIZE_8];
-    uint8_t x_h[NUM_SIZE_8];
-    uint8_t w_h[PK_SIZE_8];
     uint8_t res_h[NUM_SIZE_8*MAX_SOLS];
     uint8_t nonce[NONCE_SIZE_8];
 
-    char skstr[NUM_SIZE_4];
-    char pkstr[PK_SIZE_4 + 1];
     char to[MAX_URL_SIZE];
     int keepPrehash = 0;
 
@@ -143,12 +136,8 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     //========================================================================//
     info->info_mutex.lock();
 
-    memcpy(sk_h, info->sk, NUM_SIZE_8);
     memcpy(mes_h, info->mes, NUM_SIZE_8);
     memcpy(bound_h, info->poolbound, NUM_SIZE_8);
-    memcpy(pk_h, info->pk, PK_SIZE_8);
-    memcpy(pkstr, info->pkstr, (PK_SIZE_4 + 1) * sizeof(char));
-    memcpy(skstr, info->skstr, NUM_SIZE_4 * sizeof(char));
     memcpy(to, info->to, MAX_URL_SIZE * sizeof(char));
     // blockId = info->blockId.load();
     keepPrehash = info->keepPrehash;
@@ -171,13 +160,7 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
         return;
     }
 
-//    if (keepPrehash && freeMem < MIN_FREE_MEMORY_PREHASH)
-//    {
-//        LOG(ERROR) << "Not enough memory for keeping prehashes, "
-//                   << "setting keepPrehash to false";
-//
-        keepPrehash = 0;
-//    }
+    keepPrehash = 0;
 
     //========================================================================//
     //  Device memory allocation
@@ -230,19 +213,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
         CUDA_CALL(cudaMalloc(&uctxs_d, (uint32_t)N_LEN * sizeof(uctx_t)));
     }
 
-    //========================================================================//
-    //  Key-pair transfer form host to device
-    //========================================================================//
-    // copy public key
-    CUDA_CALL(cudaMemcpy(
-        data_d, pk_h, PK_SIZE_8, cudaMemcpyHostToDevice
-    ));
-
-    // copy secret key
-    CUDA_CALL(cudaMemcpy(
-        data_d + COUPLED_PK_SIZE_32 + 2 * NUM_SIZE_32, sk_h, NUM_SIZE_8,
-        cudaMemcpyHostToDevice
-    ));
 
     //========================================================================//
     //  Autolykos puzzle cycle
@@ -252,20 +222,11 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
 
     uint32_t hhh = 0;
 
-    //LOG(INFO) << "1  "  << info->AlgVer ;
     // set unfinalized hash contexts if necessary
     if (keepPrehash)
     {
-        LOG(INFO) << "Preparing unfinalized hashes on GPU " << deviceId;
-
-        UncompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-            data_d, uctxs_d
-        );
-
-        CUDA_CALL(cudaDeviceSynchronize());
     }
 
-    //LOG(INFO) << "2  "  << info->AlgVer ;
 
     int cntCycles = 0;
     int NCycles = 50;
@@ -275,11 +236,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
 
     start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
-
-//    HexStrToLittleEndian("000000004650A80D", NONCE_SIZE_8 * 2, (uint8_t *)&base, NONCE_SIZE_8);
-//	HexStrToLittleEndian("000000006C087210", NONCE_SIZE_8 * 2, (uint8_t *)&base, NONCE_SIZE_8);
- 
-    //HexStrToLittleEndian("      ", NONCE_SIZE_8 * 2, (uint8_t *)&base, NONCE_SIZE_8);
     do
     {
         ++cntCycles;
@@ -296,6 +252,7 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             (*hashrates)[deviceId] = (double)NONCES_PER_ITER * (double)NCycles
                 / ((double)1000 * timediff.count());
              
+	    
             start = duration_cast<milliseconds>(
                 system_clock::now().time_since_epoch()
             );
@@ -328,7 +285,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             LOG(INFO) << "GPU " << deviceId << " read new block data";
             blockId = controlId;
             
-            GenerateKeyPair(x_h, w_h);
 
             VLOG(1) << "Generated new keypair,"
                 << " copying new data in device memory now";
@@ -344,32 +300,16 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
                 cudaMemcpyHostToDevice
             ));
 
-            // copy one time secret key
-            CUDA_CALL(cudaMemcpy(
-                (data_d + COUPLED_PK_SIZE_32 + NUM_SIZE_32),
-                x_h, NUM_SIZE_8, cudaMemcpyHostToDevice
-            ));
 
-            // copy one time public key
-            CUDA_CALL(cudaMemcpy(
-                ((uint8_t *)data_d + PK_SIZE_8 + NUM_SIZE_8),
-                w_h, PK_SIZE_8, cudaMemcpyHostToDevice
-            ));
-          //  LOG(INFO) << "3   "  << info->AlgVer ;
 
             VLOG(1) << "Starting prehashing with new block data";
             Prehash(keepPrehash, data_d, uctxs_d, hashes_d, res_d,*((uint32_t *)info->Hblock),info->AlgVer);
-            //LOG(INFO) << "4   "  << info->AlgVer ;
             
             // calculate unfinalized hash of message
-
             VLOG(1) << "Starting InitMining";
             InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
-            printf("\n %d ctx_h.c ", ctx_h.c);   
-            //LOG(INFO) << "5   "  << info->AlgVer ;
             
             CUDA_CALL(cudaDeviceSynchronize());
-            //LOG(INFO) << "6   "  << info->AlgVer ;
             
             // copy context
             CUDA_CALL(cudaMemcpy(
@@ -386,10 +326,9 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
 
         if(info->AlgVer == 1)
         {
-            BlockMining<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                bound_d, data_d, base, hashes_d, res_d, indices_d, count_d
-            );
-        }
+	    LOG(INFO) << "Invalid algorithm version";
+            exit(0);   
+	}
         else
         {
             // copy message
@@ -409,13 +348,11 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             //    height_d, info->Hblock, HEIGHT_SIZE, cudaMemcpyHostToDevice
             //));
             
-            //LOG(INFO) << "7  "  << info->AlgVer ;
                         
             memcpy(&hhh,info->Hblock, HEIGHT_SIZE);
-            BlockMiningV22<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+            BlockMining<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(
                 bound_d, data_d, base,hhh, hashes_d, res_d, indices_d , count_d
             );
-            //LOG(INFO) << "8  "  << info->AlgVer ;
 
         }
         VLOG(1) << "Trying to find solution";
@@ -428,7 +365,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             cudaMemcpyDeviceToHost
         ));
 
-    //LOG(INFO) << "9  "  << info->AlgVer ;
 
         // solution found
         if (ind)
@@ -441,25 +377,21 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             
             *((uint64_t *)nonce) = base + ind - 1;
 
-    //LOG(INFO) << "10  "  << info->AlgVer ;
             
-            PrintPuzzleSolution(nonce, res_h, logstr);
+            //PrintPuzzleSolution(nonce, res_h, logstr);
             LOG(INFO) << "GPU " << deviceId
-            << " found and trying to POST a solution:\n" << logstr;
+            << " found and trying to POST a solution:" ;//<< logstr;
 
-            PostPuzzleSolution(to, pkstr, w_h, nonce, res_h);
+            PostPuzzleSolution(to, nonce);
     
             state = STATE_KEYGEN;
             CUDA_CALL(cudaMemset(
                 indices_d, 0, sizeof(uint32_t)
             ));
-            base = 0;
         }
-	else
-	   base += NONCES_PER_ITER;
+       base += NONCES_PER_ITER;
     }
     while (1);
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -479,41 +411,6 @@ int main(int argc, char ** argv)
     el::Helpers::setThreadName("main thread");
 
     char logstr[1000];
-
-    // Mnemonic generation mode
-    if(argc > 1)
-    {
-        if(!strcmp(argv[1],"-G"))
-        {
-            if(checkRandomDevice() == EXIT_SUCCESS)
-            {
-                std::string mnemonic = BIP39::generate_mnemonic(BIP39::entropy_bits_t::_192).to_string();
-                LOG(INFO) << "!!!Generated new mnemonic, put it in your config.json file!!!\n" <<
-                    mnemonic << 
-                "\n!!!Generated new mnemonic, put it in your config.json file!!!"; 
-                char skstr[NUM_SIZE_4];
-                char pkstr[PK_SIZE_4 + 1];
-                uint8_t sk[NUM_SIZE_8];
-                uint8_t pk[PK_SIZE_8];
-                GenerateSecKeyNew(
-                    mnemonic.c_str(), strlen(mnemonic.c_str()), sk,
-                    skstr, ""
-                );    
-                char logstr_gen[1000];
-                GeneratePublicKey(skstr, pkstr, pk);
-                PrintPublicKey(pkstr, logstr_gen);
-                LOG(INFO) << "Generated public key:\n   " << logstr_gen;
-            
-                exit(EXIT_SUCCESS);
-            }
-            else
-            {
-                LOG(ERROR) << "No good randomness source, can't generate mnemonic";
-                exit(EXIT_SUCCESS);
-            }
-        }
-    }
-
 
 
     //========================================================================//
@@ -554,19 +451,14 @@ int main(int argc, char ** argv)
 
     // read configuration from file
     status = ReadConfig(
-        fileName, info.sk, info.skstr, from, info.to, info.pool, &info.keepPrehash
-    );
+        fileName, from, info.to, info.pool
+     );
 
     if (status == EXIT_FAILURE) { return EXIT_FAILURE; }
 
     LOG(INFO) << "Block getting URL:\n   " << from;
     LOG(INFO) << "Solution posting URL:\n   " << info.to;
 
-    // generate public key from secret key
-    GeneratePublicKey(info.skstr, info.pkstr, info.pk);
-
-    PrintPublicKey(info.pkstr, logstr);
-    LOG(INFO) << "Generated public key:\n   " << logstr;
 
     //========================================================================//
     //  Setup CURL
@@ -606,7 +498,7 @@ int main(int argc, char ** argv)
     status = EXIT_FAILURE;
     while(status != EXIT_SUCCESS)
     {
-        status = GetLatestBlock(from, &request, &info, 1);
+        status = GetLatestBlock(from, &request, &info, 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(800));
         if(status != EXIT_SUCCESS)
         {
@@ -662,7 +554,8 @@ int main(int argc, char ** argv)
                     if(lastTimestamps[i] == timestamps[i])
                     {
                         hashrates[i] = 0;
-                    }
+
+		    }
                     lastTimestamps[i] = timestamps[i];
                 }
                 hrBuffer << "GPU" << i << " " << hashrates[i] << " MH/s ";

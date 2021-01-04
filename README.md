@@ -42,13 +42,7 @@ a config file `Autolykos2_NV_Miner/secp256k1/config.json` with stub contents.
 - To run the miner you should pass a name of a configuration file `[YOUR_CONFIG]` as an optional argument
 - If the filename is not specified, the miner will try to use `Autolykos2_NV_Miner/secp256k1/config.json` as a config
 - The configuration file must contain json string of the following structure:  
-`{ "mnemonic" : "mnemonicstring", "node" : "https://127.0.0.1", "keepPrehash" : false }`
-
-If your seed mnemonic string is protected by password, add option `"mnemonicPass": "yourpassword"` to your configuration.
-
-The mode of execution with `keepPrehash` option:
-1. `true` -- enable total unfinalized prehashes array (5GiB) reusage. ( Should only be used if your CUDA devices have >= 8GiB memory)
-2. `false` -- prehash recalculation for each block. (For CUDA devices with >= 3GiB memory)
+`{ "node" : "https://127.0.0.1:9052" }`
 
 To run the miner on all available CUDA devices type:
 ```
@@ -60,11 +54,7 @@ To choose CUDA devices change and use `runner.sh` or directly change environment
 ## Run (Windows 64-bit)
 
 - Create a config.json file in miner directory with following structure:
-`{ "mnemonic" : "mnemonicstring", "node" : "https://127.0.0.1", "keepPrehash" : false }`
-
-If your seed mnemonic string is protected by password, add option `"mnemonicPass": "yourpassword"` to your configuration.
-
-The mode of execution with `keepPrehash` option isn't important in Autolykos V2.
+`{ "node" : "https://127.0.0.1:9052" }`
 
 To change CUDA devices available to the miner change environment variable `CUDA_VISIBLE_DEVICES` , for example ` set CUDA_VISIBLE_DEVICES="0,1" `
 

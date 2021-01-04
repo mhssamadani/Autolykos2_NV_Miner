@@ -27,12 +27,9 @@
 // understands single-level json strings ({"a":"b", "c":"d", ...})
 int ReadConfig(
     const char * fileName,
-    uint8_t * sk,
-    char * skstr,
     char * from,
     char * to,
-    char * pool,
-    int * keep
+    char * pool
 )
 {
     std::ifstream file(
@@ -72,14 +69,7 @@ int ReadConfig(
     }
     
     uint8_t readNode = 0;
-    uint8_t readSeed = 0;
-    uint8_t readSeedPass = 0;
 
-    // default keepPrehash = false
-    *keep = 0;
-
-    char* seedstring;
-    char* seedPass;
 
     for (int t = 1; t < numtoks; t += 2)
     {
@@ -106,85 +96,17 @@ int ReadConfig(
 
             readNode = 1;
         }
-        else if (config.jsoneq(t, "keepPrehash"))
-        {
-            if (!strncmp(config.GetTokenStart(t + 1), "true", 4))
-            {
-                *keep = 1;
-
-                VLOG(1) << "Setting keepPrehash to 1";
-            }
-        }
-        else if (config.jsoneq(t, "mnemonic") || config.jsoneq(t,"seed"))
-        {
-
-            seedstring = (char*)malloc((config.GetTokenLen(t + 1) + 1)*sizeof(char));
-            seedstring[0] = '\0';
-            strncat(seedstring, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
-            VLOG(1) << "Mnemonic read: " << seedstring;
-            readSeed = 1;
-        }
-        else if (config.jsoneq(t, "mnemonicPass") || config.jsoneq(t,"seedPass"))
-        {
-
-            seedPass = (char*)malloc((config.GetTokenLen(t + 1) + 1)*sizeof(char));
-            seedPass[0] = '\0';
-            strncat(seedPass, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
-
-            readSeedPass = 1;
-        }
         else
         {
             LOG(INFO) << "Unrecognized config option, currently valid options are "
-                         "\"node\", \"mnemonic\", \"mnemonicPass\" and \"keepPrehash\"";
+                         "\"node\"";
         }
     }
 
-    if(readSeed && readSeedPass)
-    {
-        GenerateSecKeyNew(
-            seedstring, strlen(seedstring), sk,
-            skstr, seedPass
-        );
-        free(seedstring);
-        free(seedPass);
-    }
-    else if( readSeed && !readSeedPass)
-    {
-        GenerateSecKeyNew(
-            seedstring, strlen(seedstring), sk,
-            skstr, ""
-        );
-        free(seedstring);
-    }
-
-    #ifdef EMBEDDED_MNEMONIC
-        #ifdef EMBEDDED_PASS
-         GenerateSecKeyNew(
-            EMBEDDED_MNEMONIC, strlen(EMBEDDED_MNEMONIC), sk,
-            skstr, EMBEDDED_PASS
-        );
-        readSeedPass = 1;
-        readSeed = 1;
-        #else
-        GenerateSecKeyNew(
-            EMBEDDED_MNEMONIC, strlen(EMBEDDED_MNEMONIC), sk,
-            skstr, ""
-        );
-        readSeed = 1;
-        #endif
-    #else
-
-    #endif
-
-
-
-
-
-    if (readSeed & readNode) { return EXIT_SUCCESS; }
+    if (readNode) { return EXIT_SUCCESS; }
     else
     {
-        LOG(ERROR) << "Incomplete config: node or seed are not specified";
+        LOG(ERROR) << "Incomplete config: node is not specified";
         return EXIT_FAILURE;
     }
 }

@@ -12,102 +12,6 @@
 #include <cuda.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-//  First iteration of hashes precalculation
-////////////////////////////////////////////////////////////////////////////////
-__global__ void InitPrehash(
-    // data: pk || mes || w || padding || x || sk
-    const uint32_t * data,
-    // hashes
-    uint32_t * hashes,
-    // indices of invalid range hashes
-    uint32_t * invalid
-)
-{
-
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Uncompleted first iteration of hashes precalculation
-////////////////////////////////////////////////////////////////////////////////
-__global__ void UncompleteInitPrehash(
-    // data: pk
-    const uint32_t * data,
-    // unfinalized hash contexts
-    uctx_t * uctxs
-)
-{
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Complete first iteration of hashes precalculation
-////////////////////////////////////////////////////////////////////////////////
-__global__ void CompleteInitPrehash(
-    // data: pk || mes || w || padding || x || sk
-    const uint32_t * data,
-    // unfinalized hashes contexts
-    const uctx_t * uctxs,
-    // hashes
-    uint32_t * hashes,
-    // indices of invalid range hashes
-    uint32_t * invalid
-)
-{
-
-    
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Rehash out of bounds hashes
-//  not used right now
-////////////////////////////////////////////////////////////////////////////////
-__global__ void UpdatePrehash(
-    // hashes
-    uint32_t * hashes,
-    // indices of invalid range hashes
-    uint32_t * invalid,
-    const uint32_t len
-)
-{
-
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Hashes modulo Q
-////////////////////////////////////////////////////////////////////////////////
-__global__ void FinalPrehash(
-    // hashes
-    uint32_t * hashes
-)
-{
-  
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Hashes multiplication modulo Q by one time secret key 
-////////////////////////////////////////////////////////////////////////////////
-__global__ void FinalPrehashMultSecKey(
-    // data: pk || mes || w || padding || x || sk
-    const uint32_t * data,
-    // hashes
-    uint32_t * hashes
-)
-{
-  
-
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //  Precalculate hashes
 ////////////////////////////////////////////////////////////////////////////////
 int Prehash(
@@ -127,33 +31,11 @@ int Prehash(
 
     if(AlgVer == 1)
     {
-        uint32_t * ind = invalid;
-
-        // complete init prehash by hashing message and public key
-        if (keep)
-        {
-            CompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                data, uctxs, hashes, ind
-            );
-            CUDA_CALL(cudaPeekAtLastError());
-        }
-        // hash index, constant message and public key
-        else
-        {
-            InitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                data, hashes, ind
-            );
-            CUDA_CALL(cudaPeekAtLastError());
-        }
-        
-        // multiply by secret key moq Q
-        FinalPrehashMultSecKey<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-            data, hashes
-        );
+        return EXIT_FAILURE ;
     }
     else
     {
-        InitPrehashVer22<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+        InitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
             height, hashes
         );
         CUDA_CALL(cudaPeekAtLastError());
@@ -162,12 +44,7 @@ int Prehash(
     return EXIT_SUCCESS;
     
 }
-
-
-
-
-
-__global__ void InitPrehashVer22(
+__global__ void InitPrehash(
     // height
     const uint32_t  height,
     // hashes
@@ -184,10 +61,6 @@ __global__ void InitPrehashVer22(
     if (tid < N_LEN)
     {
         uint32_t j;
-
-        // pk || mes || w
-        // 2 * PK_SIZE_8 + NUM_SIZE_8 bytes
-       // uint32_t * rem = sdata;
 
         // local memory
         // 472 bytes
@@ -222,7 +95,7 @@ __global__ void InitPrehashVer22(
         #pragma unroll
         for (j = 0; ctx->c < BUF_SIZE_8 && j < HEIGHT_SIZE ; ++j)
         {
-            ctx->b[ctx->c++] = ((const uint8_t *)&height)[j/*HEIGHT_SIZE - j - 1*/];
+            ctx->b[ctx->c++] = ((const uint8_t *)&height)[j];
         }
 
         //====================================================================//

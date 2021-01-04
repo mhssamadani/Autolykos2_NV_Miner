@@ -54,7 +54,7 @@ SRCDIR = ./src
 # define sources
 CUSOURCES = $(filter-out $(SRCDIR)/test.cu $(SRCDIR)/autolykos.cu, \
 			$(wildcard $(SRCDIR)/*.cu))
-CPPSOURCES = $(wildcard $(SRCDIR)/*.cc) $(wildcard $(SRCDIR)/bip39/*.cc)
+CPPSOURCES = $(wildcard $(SRCDIR)/*.cc) 
 CSOURCES = $(wildcard $(SRCDIR)/*.c)
 
 # define objects
