@@ -12,7 +12,7 @@ nvcc -o ../miner.exe -Xcompiler "/std:c++14" -gencode arch=compute_%CUDA_COMPUTE
  -l %OPENSSL_DIR%\lib\libeay32 -L %OPENSSL_DIR%/lib ^
  -lnvml ^
 conversion.cc cryptography.cc definitions.cc jsmn.c httpapi.cc ^
-mining.cu prehash.cu processing.cc request.cc easylogging++.cc bip39/bip39.cc bip39/util.cc autolykos.cu
+mining.cu prehash.cu processing.cc request.cc easylogging++.cc autolykos.cu
 
 nvcc -o ../test.exe -Xcompiler "/std:c++14" -gencode arch=compute_%CUDA_COMPUTE_ARCH%,code=sm_%CUDA_COMPUTE_ARCH%^
  -gencode arch=compute_30,code=compute_30 -DBLOCK_DIM=%BLOCK_DIM% -DNONCES_PER_ITER=%WORKSPACE%^
