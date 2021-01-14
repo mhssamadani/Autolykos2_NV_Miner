@@ -126,9 +126,9 @@ int TestSolutions(
 
     if (info->keepPrehash)
     {
-        UncompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-            data_d, uctxs_d
-        );
+        // UncompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+        //     data_d, uctxs_d
+        // );
     }
 
     Prehash(info->keepPrehash, data_d, uctxs_d, hashes_d, res_d);
@@ -291,9 +291,9 @@ int TestPerformance(
     {
         LOG(INFO) << "Set keepPrehash = true";
 
-        UncompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-            data_d, uctxs_d
-        );
+        // UncompleteInitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+        //     data_d, uctxs_d
+        // );
 
         CUDA_CALL(cudaDeviceSynchronize());
 

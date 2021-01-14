@@ -84,169 +84,14 @@ void CurlLogError(CURLcode curl_status)
 // Parse JSON request and substitute data if needed
 // moved to separate function for tests
 ///////////////////////////////////////////////////////////////////////////////
-
-int ParseRequest(json_t * oldreq , json_t * newreq, info_t *info, int checkPubKey)
-{
-    jsmn_parser parser;
-    int mesChanged = 0;
-    int boundChanged = 0;
-    ToUppercase(newreq->ptr);
-    jsmn_init(&parser);
-    
-
-    int numtoks = jsmn_parse(
-        &parser, newreq->ptr, newreq->len, newreq->toks, REQ_LEN
-    );
-
-    if (numtoks < 0)
-    {
-        LOG(ERROR) << "Jsmn failed to parse latest block";
-        LOG(ERROR) << "Block data: " << newreq->ptr;
-
-        return EXIT_FAILURE;
-    }
-
-    int PkPos = -1;
-    int BoundPos = -1;
-    int MesPos = -1;
-
-    for(int i = 1; i < numtoks; i+=2)
-    {
-        if(newreq->jsoneq(i,"B"))
-        {
-            BoundPos = i+1; 
-        }
-        else if(newreq->jsoneq(i,"PK"))
-        {
-            PkPos = i+1;
-        }
-        else if(newreq->jsoneq(i,"MSG"))
-        {
-            MesPos = i+1;
-        }
-        else
-        {
-            VLOG(1) << "Unexpected field in /block/candidate json";
-        }
-
-    }
-
-    if( PkPos < 0 || BoundPos < 0 || MesPos < 0 )
-    {
-        LOG(ERROR) << "Some of expected fields not present in /block/candidate";
-        LOG(ERROR) << "Block data: " << newreq->ptr;
-        return EXIT_FAILURE;
-    }
-
-    if(newreq->GetTokenLen(PkPos) != PK_SIZE_4)
-    {
-        LOG(ERROR) << "Wrong size pubkey in block info";
-        return EXIT_FAILURE;
-    }
-
-    if (checkPubKey)
-    {   
-        if (strncmp(info->pkstr, newreq->GetTokenStart(PkPos), PK_SIZE_4))
-        {
-                char logstr[1000];
-
-                LOG(ERROR)
-                    << "Generated and received public keys do not match";
-                
-                PrintPublicKey(info->pkstr, logstr);
-                LOG(ERROR) << "Generated public key:\n   " << logstr;
-            
-                PrintPublicKey(newreq->GetTokenStart(PkPos), logstr);
-                LOG(ERROR) << "Received public key:\n   " << logstr;
-
-                exit(EXIT_FAILURE);
-        }
-    }
-
-    int mesLen = newreq->GetTokenLen(MesPos);
-    int boundLen = newreq->GetTokenLen(BoundPos);       
-
-
-    if (oldreq->len)
-    {
-        if (mesLen != oldreq->GetTokenLen(MesPos)) { mesChanged = 1; }
-        else
-        {
-            mesChanged = strncmp(
-                oldreq->GetTokenStart(MesPos),
-                newreq->GetTokenStart(MesPos),
-                mesLen
-            );
-        }
-
-        if (boundLen != oldreq->GetTokenLen(BoundPos))
-        {
-            boundChanged = 1;
-        }
-        else
-        {
-            boundChanged = strncmp(
-                oldreq->GetTokenStart(BoundPos),
-                newreq->GetTokenStart(BoundPos),
-                boundLen
-            );
-        }
-    }
-
-    // check if we need to change anything, only then lock info mutex
-    if (mesChanged || boundChanged || !(oldreq->len))
-    {
-        info->info_mutex.lock();
-        
-        //================================================================//
-        //  Substitute message and change state when message changed
-        //================================================================//
-        if (!(oldreq->len) || mesChanged)
-        {
-                HexStrToBigEndian(
-                    newreq->GetTokenStart(MesPos), newreq->GetTokenLen(MesPos),
-                    info->mes, NUM_SIZE_8
-                );
-        }
-
-        //================================================================//
-        //  Substitute bound in case it changed
-        //================================================================//
-        if (!(oldreq->len) || boundChanged)
-        {
-            char buf[NUM_SIZE_4 + 1];
-
-            DecStrToHexStrOf64(
-                newreq->GetTokenStart(BoundPos),
-                newreq->GetTokenLen(BoundPos),
-                buf
-            );
-
-            HexStrToLittleEndian(buf, NUM_SIZE_4, info->bound, NUM_SIZE_8);
-        }
-        
-        info->info_mutex.unlock();
-        
-        // signaling uint
-        ++(info->blockId);
-        LOG(INFO) << "Got new block in main thread, block data: " << newreq->ptr;
-    }
-
-    return EXIT_SUCCESS;
-
-
-}
-
-
-// pool additions
-
-int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey)
+int ParseRequest(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey)
 {
 	jsmn_parser parser;
 	int mesChanged = 0;
     int HChanged = 0;
 	int boundChanged = 0;
-	int PboundChanged = 0;
+	int ExtraBaseChanged = 0;
+	int ExtraSizeChanged = 0;
 	ToUppercase(newreq->ptr);
 	jsmn_init(&parser);
 
@@ -265,9 +110,10 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 
 	int PkPos = -1;
 	int BoundPos = -1;
-	int PBoundPos = -1;
 	int MesPos = -1;
     int HPos = -1;
+	int ExtraBasePos = -1;
+	int ExtraSizePos = -1;
 
 	for (int i = 1; i < numtoks; i += 2)
 	{
@@ -283,14 +129,19 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 		{
 			MesPos = i + 1;
 		}
-		else if (newreq->jsoneq(i, "PB"))
-		{
-			PBoundPos = i + 1;
-		}
-		else if (newreq->jsoneq(i, "H"))
+		else if (newreq->jsoneq(i, "H") || newreq->jsoneq(i, "HEIGHT")  )
 		{
 			HPos = i + 1;
 		}
+		else if (newreq->jsoneq(i, "EXTRANONCE1"))
+		{
+			ExtraBasePos = i + 1;
+		}
+		else if (newreq->jsoneq(i, "EXTRANONCE2SIZE"))
+		{
+			ExtraSizePos = i + 1;
+		}
+
 		else
 		{
 			VLOG(1) << "Unexpected field in /block/candidate json";
@@ -298,25 +149,22 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 
 	}
 
-    VLOG(1) << "PkPos: " << PkPos << " PBoundPos: " << PBoundPos << "BoundPos: " << BoundPos;
-    int AlgVer;
-	(HPos == -1) ? AlgVer = 1 : AlgVer = 2;
-
-	if ( (PkPos < 0 && AlgVer == 1) || BoundPos < 0 || MesPos < 0 /* || PBoundPos < 0*/)
+	(HPos == -1) ? info->AlgVer = 1 : info->AlgVer = 2;
+	if ( BoundPos < 0 || MesPos < 0 || HPos < 0 )
 	{
 		LOG(ERROR) << "Some of expected fields not present in /block/candidate";
 		LOG(ERROR) << "Block data: " << newreq->ptr;
 		return EXIT_FAILURE;
 	}
 
-	if (AlgVer == 1 && newreq->GetTokenLen(PkPos) != PK_SIZE_4)
-	{
-		LOG(ERROR) << "Wrong size pubkey in block info";
-		return EXIT_FAILURE;
-	}
 
-	if (AlgVer == 1 && checkPubKey)
+	if (checkPubKey)
 	{
+		if (newreq->GetTokenLen(PkPos) != PK_SIZE_4)
+		{
+			LOG(ERROR) << "Wrong size pubkey in block info";
+			return EXIT_FAILURE;
+		}
 		if (strncmp(info->pkstr, newreq->GetTokenStart(PkPos), PK_SIZE_4))
 		{
 			char logstr[1000];
@@ -336,8 +184,9 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 
 	int mesLen = newreq->GetTokenLen(MesPos);
 	int boundLen = newreq->GetTokenLen(BoundPos);
-	int PboundLen = newreq->GetTokenLen(PBoundPos);
-    int Hlen = 4;
+	int Hlen = newreq->GetTokenLen(HPos);
+	int ExtraBaseLen = newreq->GetTokenLen(ExtraBasePos);
+	int ExtraSizeLen = newreq->GetTokenLen(ExtraSizePos);
 
 	if (oldreq->len)
 	{
@@ -365,36 +214,114 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 		}
 
 
-		if (PboundLen != oldreq->GetTokenLen(PBoundPos))
+		if (ExtraBasePos != -1)
 		{
-			PboundChanged = 1;
-		}
-		else
-		{
-			PboundChanged = strncmp(
-				oldreq->GetTokenStart(PBoundPos),
-				newreq->GetTokenStart(PBoundPos),
-				PboundLen
-				);
+			if (ExtraBaseLen != oldreq->GetTokenLen(ExtraBasePos))
+			{
+				ExtraBaseChanged = 1;
+			}
+			else
+			{
+				ExtraBaseChanged = strncmp(
+					oldreq->GetTokenStart(ExtraBasePos),
+					newreq->GetTokenStart(ExtraBasePos),
+					ExtraBaseLen
+					);
+			}
 		}
 
-        if(HPos != -1)
-        {
-            HChanged = strncmp(
-                oldreq->GetTokenStart(HPos),
-                newreq->GetTokenStart(HPos),
-                Hlen
-                );
-        }
+		if (ExtraSizePos != -1)
+		{
+			if (ExtraSizeLen != oldreq->GetTokenLen(ExtraSizePos))
+			{
+				ExtraSizeChanged = 1;
+			}
+			else
+			{
+				ExtraSizeChanged = strncmp(
+					oldreq->GetTokenStart(ExtraSizePos),
+					newreq->GetTokenStart(ExtraSizePos),
+					ExtraSizeLen
+					);
+			}
+		}
+
+
+        HChanged = strncmp(
+            oldreq->GetTokenStart(HPos),
+            newreq->GetTokenStart(HPos),
+            Hlen
+            );
 
 	}
 
 	// check if we need to change anything, only then lock info mutex
-	if (mesChanged || boundChanged || HChanged || !(oldreq->len))
+	if (mesChanged || boundChanged || !(oldreq->len) || HChanged || ExtraBaseChanged || ExtraSizeChanged)
 	{
 		info->info_mutex.lock();
+		// --------------------check strutum-------------------------------------
+		info->stratumMode = 1;
+		if (ExtraBasePos == -1)
+		{
+			memset(info->extraNonceStart, 0, NONCE_SIZE_8);
+			memset(info->extraNonceEnd, 1, NONCE_SIZE_8);
+			info->stratumMode = 0;
+		}
+		else if (!(oldreq->len) || ExtraBaseChanged || ExtraSizeChanged)
+		{
+			if(ExtraSizeLen <= 0)
+			{
+				LOG(ERROR) << "stratumMode, Invalid nonce \n ";
+				LOG(ERROR) << "Block data: " << newreq->ptr;
+				info->info_mutex.unlock();
+				return EXIT_FAILURE;
+			}
 
-    	info->AlgVer = AlgVer;
+			char *buff = new char[ExtraSizeLen];
+			memcpy(buff, newreq->GetTokenStart(ExtraSizePos), ExtraSizeLen);
+			char *endptr;
+			unsigned int iLen = strtoul(buff, &endptr, 10);
+			delete buff;
+
+			//iLen = 1;
+			iLen *= 2; //hex
+			if (info->stratumMode == 1 && (iLen + ExtraBaseLen) != NONCE_SIZE_4)
+			{
+				LOG(ERROR) << "stratumMode, Invalid nonce \n ";
+				LOG(ERROR) << "Block data: " << newreq->ptr;
+				info->info_mutex.unlock();
+				return EXIT_FAILURE;
+			}
+			memset(info->extraNonceStart, 0, NONCE_SIZE_8);
+			memset(info->extraNonceEnd, 1, NONCE_SIZE_8);
+
+			char *NonceBase = new char[ExtraBaseLen];
+			memcpy(NonceBase, newreq->GetTokenStart(ExtraBasePos), ExtraBaseLen);
+
+			char *StartNonce = new char[NONCE_SIZE_4];
+			memset(StartNonce, '0', NONCE_SIZE_4);
+			char *EndNonce = new char[NONCE_SIZE_4];
+			memset(EndNonce, '0', NONCE_SIZE_4);
+
+			memcpy(StartNonce, NonceBase, ExtraBaseLen);
+
+			memcpy(EndNonce, NonceBase, ExtraBaseLen);
+			memset(EndNonce + ExtraBaseLen, 'F', iLen);
+
+			HexStrToLittleEndian(
+				StartNonce, NONCE_SIZE_4,
+				info->extraNonceStart, NONCE_SIZE_8
+				);
+			HexStrToLittleEndian(
+				EndNonce, NONCE_SIZE_4,
+				info->extraNonceEnd, NONCE_SIZE_8
+				);
+			delete NonceBase;
+			delete StartNonce;
+			delete EndNonce;
+
+		}
+		// --------------------check strutum-------------------------------------
 
 		//================================================================//
 		//  Substitute message and change state when message changed
@@ -405,6 +332,18 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 				newreq->GetTokenStart(MesPos), newreq->GetTokenLen(MesPos),
 				info->mes, NUM_SIZE_8
 				);
+		}
+		if (!(oldreq->len)  || HChanged )
+		{
+			char *buff = new char[Hlen];
+			memcpy(buff, newreq->GetTokenStart(HPos), Hlen);
+			char *endptr;
+			unsigned int ul = strtoul(buff, &endptr, 10);
+			info->Hblock[0] = ((uint8_t *)&ul)[3];
+			info->Hblock[1] = ((uint8_t *)&ul)[2];
+			info->Hblock[2] = ((uint8_t *)&ul)[1];
+			info->Hblock[3] = ((uint8_t *)&ul)[0];
+			delete buff;
 		}
 
 		//================================================================//
@@ -424,38 +363,8 @@ int ParseRequestWithPBound(json_t * oldreq, json_t * newreq, info_t *info, int c
 		}
 
 
-		//================================================================//
-		//  Substitute pool bound in case it changed
-		//================================================================//
-        if(PBoundPos == -1)
-        {
-            memcpy(info->poolbound,info->bound,NUM_SIZE_8);    
-        }
-		else if (!(oldreq->len) || PboundChanged)
-		{
-			char buf[NUM_SIZE_4 + 1];
-
-			DecStrToHexStrOf64(
-				newreq->GetTokenStart(PBoundPos),
-				newreq->GetTokenLen(PBoundPos),
-				buf
-				);
-
-			HexStrToLittleEndian(buf, NUM_SIZE_4, info->poolbound, NUM_SIZE_8);
-		}
 
 
-		if (!(oldreq->len)  || HChanged )
-		{
-			char buff[HEIGHT_SIZE];
-			memcpy(buff, newreq->GetTokenStart(HPos), HEIGHT_SIZE);
-			char *endptr;
-			unsigned int ul = strtoul(buff, &endptr, 10);
-			info->Hblock[0] = ((uint8_t *)&ul)[3];
-			info->Hblock[1] = ((uint8_t *)&ul)[2];
-			info->Hblock[2] = ((uint8_t *)&ul)[1];
-			info->Hblock[3] = ((uint8_t *)&ul)[0];
-		}
 
 		info->info_mutex.unlock();
 
@@ -510,7 +419,7 @@ int GetLatestBlock(
     if (!curlError)
     {
         int oldId = info->blockId.load();
-        if(ParseRequestWithPBound(oldreq, &newreq, info, checkPubKey) != EXIT_SUCCESS)
+        if(ParseRequest(oldreq, &newreq, info, checkPubKey) != EXIT_SUCCESS)
         {
             return EXIT_FAILURE;
         }
@@ -532,6 +441,49 @@ int GetLatestBlock(
     return EXIT_FAILURE;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+//  CURL http notification, Completed job 
+////////////////////////////////////////////////////////////////////////////////
+
+int JobCompleted(
+	const char * to
+	)
+{
+	CURL * curl;
+	json_t newreq(0, REQ_LEN);
+
+	//========================================================================//
+	//  JOB COMPLETED
+	//========================================================================//
+	CURLcode curlError;
+
+	curl = curl_easy_init();
+	if (!curl) { LOG(ERROR) << "CURL initialization failed in JobCompleted"; }
+
+	CurlLogError(curl_easy_setopt(curl, CURLOPT_URL, to));
+	CurlLogError(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteFunc));
+	CurlLogError(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &newreq));
+
+	// set timeout to 30 sec so it doesn't hang up
+	// waiting for default 5 minutes if url is unreachable / wrong
+	CurlLogError(curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L));
+	CurlLogError(curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L));
+	curlError = curl_easy_perform(curl);
+	CurlLogError(curlError);
+	curl_easy_cleanup(curl);
+
+	LOG(INFO) << "GET request (JOB Completed) " << newreq.ptr;
+
+	// if curl returns error on request, do not change or check anything
+	if (!curlError)
+	{
+	}
+
+	return EXIT_SUCCESS;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  CURL http POST request
 ////////////////////////////////////////////////////////////////////////////////
@@ -546,47 +498,11 @@ int PostPuzzleSolution(
     char request[JSON_CAPACITY];
 
 
-	char pkstrTmp[PK_SIZE_4+1] = "026A04AB98D9E4774AD806E302DDDEB63BEA16B5CB5F223EE77478E861BB583EB3";
-	uint8_t wTmp[PK_SIZE_8];
-	memset(wTmp, 0, sizeof(uint8_t) * PK_SIZE_8);
-	wTmp[0] = 2;
-	wTmp[PK_SIZE_8 - 1] = 2;
-	uint32_t dTmp[NUM_SIZE_32];
-	memset(dTmp, 0, sizeof(uint32_t) * NUM_SIZE_32);
-	dTmp[0] = 222;
-
     //========================================================================//
     //  Form message to post
     //========================================================================//
 
 
-  /*  
-    strcpy(request + pos, "{\"pk\":\"");
-    pos += 7;
-
-    strcpy(request + pos, pkstrTmp);
-    pos += PK_SIZE_4;
-
-   strcpy(request + pos, "\",\"w\":\"");
-    pos += 7;
-
-    BigEndianToHexStr(wTmp, PK_SIZE_8, request + pos);
-    pos += PK_SIZE_4;
-
-    strcpy(request + pos, "\",\"n\":\"");
-    pos += 7;
-
-    LittleEndianToHexStr(nonce, NONCE_SIZE_8, request + pos);
-    pos += NONCE_SIZE_4;
-
-    strcpy(request + pos, "\",\"d\":");
-    pos += 6;
-
-   LittleEndianOf256ToDecStr((uint8_t *)dTmp, request + pos, &len);
-   pos += len;
-
-    strcpy(request + pos, "e0}\0");
-    */
 
     strcpy(request + pos, "{\"n\":\"");
     pos += 6;

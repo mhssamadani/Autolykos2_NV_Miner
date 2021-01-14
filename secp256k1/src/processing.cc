@@ -26,15 +26,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 // understands single-level json strings ({"a":"b", "c":"d", ...})
 int ReadConfig(
-    const char * fileName,
-    char * from,
-    char * to,
-    char * pool
-)
+    const char *fileName,
+    char *from,
+    char *to,
+    char *endJob)
 {
     std::ifstream file(
-        fileName, std::ios::in | std::ios::binary | std::ios::ate
-    );
+        fileName, std::ios::in | std::ios::binary | std::ios::ate);
 
     if (!file.is_open())
     {
@@ -49,7 +47,7 @@ int ReadConfig(
     file.seekg(0, std::ios::beg);
     file.read(config.ptr, len);
     file.close();
-    
+
     // need to null terminate config string, at least for win32
     config.ptr[len] = '\0';
 
@@ -57,19 +55,17 @@ int ReadConfig(
     jsmn_init(&parser);
 
     VLOG(1) << "config string " << config.ptr;
-    
+
     int numtoks = jsmn_parse(
-        &parser, config.ptr, strlen(config.ptr), config.toks, CONF_LEN
-    );
+        &parser, config.ptr, strlen(config.ptr), config.toks, CONF_LEN);
 
     if (numtoks < 0)
     {
         LOG(ERROR) << "Jsmn failed to recognise configuration option";
         return EXIT_FAILURE;
     }
-    
-    uint8_t readNode = 0;
 
+    uint8_t readNode = 0;
 
     for (int t = 1; t < numtoks; t += 2)
     {
@@ -77,22 +73,19 @@ int ReadConfig(
         {
             from[0] = '\0';
             to[0] = '\0';
-            pool[0] = '\0';
+            endJob[0] = '\0';
             strncat(
-                from, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1)
-            );
+                from, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
 
             strcat(from, "/mining/candidate");
-            
+
             strncat(to, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
             strcat(to, "/mining/solution");
-            
-            strncat(pool, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
-            strcat(pool, "/mining/share");
-            
 
+            strncat(endJob, config.GetTokenStart(t + 1), config.GetTokenLen(t + 1));
+            strcat(endJob, "/mining/job/completed");
 
-            VLOG(1) << "from url " << from  << " to url " << to;
+            VLOG(1) << "from url " << from << " to url " << to;
 
             readNode = 1;
         }
@@ -103,7 +96,10 @@ int ReadConfig(
         }
     }
 
-    if (readNode) { return EXIT_SUCCESS; }
+    if (readNode)
+    {
+        return EXIT_SUCCESS;
+    }
     else
     {
         LOG(ERROR) << "Incomplete config: node is not specified";
@@ -114,17 +110,16 @@ int ReadConfig(
 ////////////////////////////////////////////////////////////////////////////////
 //  Print public key
 ////////////////////////////////////////////////////////////////////////////////
-int PrintPublicKey(const char * pkstr, char * str)
+int PrintPublicKey(const char *pkstr, char *str)
 {
     sprintf(
         str, "   pkHex = %.2s%.16s%.16s%.16s%.16s",
-        pkstr, pkstr + 2, pkstr + 18, pkstr + 34, pkstr + 50
-    );
+        pkstr, pkstr + 2, pkstr + 18, pkstr + 34, pkstr + 50);
 
     return EXIT_SUCCESS;
 }
 
-int PrintPublicKey(const uint8_t * pk, char * str)
+int PrintPublicKey(const uint8_t *pk, char *str)
 {
     sprintf(
         str, "   pkHex = 0x%02X%016lX%016lX%016lX%016lX",
@@ -132,8 +127,7 @@ int PrintPublicKey(const uint8_t * pk, char * str)
         REVERSE_ENDIAN((uint64_t *)(pk + 1) + 0),
         REVERSE_ENDIAN((uint64_t *)(pk + 1) + 1),
         REVERSE_ENDIAN((uint64_t *)(pk + 1) + 2),
-        REVERSE_ENDIAN((uint64_t *)(pk + 1) + 3)
-    );
+        REVERSE_ENDIAN((uint64_t *)(pk + 1) + 3));
 
     return EXIT_SUCCESS;
 }
@@ -142,18 +136,16 @@ int PrintPublicKey(const uint8_t * pk, char * str)
 //  Print Autolukos puzzle solution
 ////////////////////////////////////////////////////////////////////////////////
 int PrintPuzzleSolution(
-    const uint8_t * nonce,
-    const uint8_t * sol,
-    char * str
-)
+    const uint8_t *nonce,
+    const uint8_t *sol,
+    char *str)
 {
     sprintf(
         str, "   nonce = 0x%016lX\n"
-        "       d = 0x%016lX %016lX %016lX %016lX",
+             "       d = 0x%016lX %016lX %016lX %016lX",
         *((uint64_t *)nonce),
         ((uint64_t *)sol)[3], ((uint64_t *)sol)[2],
-        ((uint64_t *)sol)[1], ((uint64_t *)sol)[0]
-    );
+        ((uint64_t *)sol)[1], ((uint64_t *)sol)[0]);
 
     return EXIT_SUCCESS;
 }

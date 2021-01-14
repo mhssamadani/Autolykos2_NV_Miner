@@ -59,8 +59,6 @@ __global__ void BlockMining(
     const uint32_t height,
     // precalculated hashes
     const uint32_t * hashes,
-    // results
-    uint32_t * res,
     // indices of valid solutions
     uint32_t * valid , 
     uint32_t * count
@@ -459,16 +457,8 @@ __global__ void BlockMining(
             {
     
                 
-             //   uint32_t id = atomicAdd(count, 1);
-	         //   if(id == 0)
-                    valid[0] = tid+1; 
-                    #pragma unroll
-                    for (int i = 0; i < NUM_SIZE_32; ++i)
-                    {
-                        res[i] = r[i];
-
-                    }
-
+                uint32_t id = atomicInc(count, MAX_SOLS);
+                valid[id] = tid+1; 
            }
         }
 

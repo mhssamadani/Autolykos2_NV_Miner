@@ -10,15 +10,11 @@
 struct MinerShare
 {
     MinerShare();
-    MinerShare(uint64_t _nonce, uint8_t *_w, uint8_t *_d)
+    MinerShare(uint64_t _nonce)
     {
         nonce = _nonce;
-        memcpy(pubkey_w, _w, PK_SIZE_8);
-        memcpy(d, _d, NUM_SIZE_8);
     }
     uint64_t nonce;
-    uint8_t pubkey_w[PK_SIZE_8];
-    uint8_t d[NUM_SIZE_8];
 };
 
 //simple blocking queue for solutions sending

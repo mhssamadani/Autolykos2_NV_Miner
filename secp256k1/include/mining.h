@@ -21,20 +21,26 @@ void InitMining(
 
 // block mining iteration
 __global__ void BlockMining(
+
     // boundary for puzzle
     const uint32_t * bound,
+
     // data:  mes  ctx
     const uint32_t * data,
+
     // nonce base
     const uint64_t base,
+
     // block height
     const uint32_t height,
+
     // precalculated hashes
     const uint32_t * hashes,
-    // results
-    uint32_t * res,
+
+
     // indices of valid solutions
     uint32_t * valid , 
+
     uint32_t * count
 );
 #endif // MINING_H

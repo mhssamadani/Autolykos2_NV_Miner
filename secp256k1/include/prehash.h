@@ -20,8 +20,6 @@ int Prehash(
     uctx_t * uctxs,
     // hashes
     uint32_t * hashes,
-    // indices of invalid range hashes
-    uint32_t * invalid,
     uint32_t  height,
     uint8_t  AlgVer
 );
