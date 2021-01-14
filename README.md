@@ -58,6 +58,12 @@ To choose CUDA devices change and use `runner.sh` or directly change environment
 
 To change CUDA devices available to the miner change environment variable `CUDA_VISIBLE_DEVICES` , for example ` set CUDA_VISIBLE_DEVICES="0,1" `
 
+## Stratum Proxy
+
+For using miner with Stratum you should setup [Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy) and connect your miner to proxy for working on a Stratum server.
+
+For config Stratum Proxy after install package dependencies of Stratum Proxy update [`client.js`](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/client.js) for [initial port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139) and set [address](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L7) of Stratum Server that you want to work on and after these config start Stratum Proxy as stated in this [Readme](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/README.md) now you can insted of `node` key in configuration file of miner input address of Stratum Proxy (by default after run proxy run in url `http://127.0.0.1:3000`).
+
 ## HTTP Info
 
 Miner has a HTTP info page located at `http://miningnode:36207` (one can change default port by adding `-DHTTPAPI_PORT XXXX` to Makefile).
