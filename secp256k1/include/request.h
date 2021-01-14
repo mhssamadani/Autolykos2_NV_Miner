@@ -49,6 +49,10 @@ int GetLatestBlock(
     info_t * info,
     int checkPubKey
 );
+// CURL http notification, Completed job 
+int JobCompleted(
+	const char * to
+	);
 
 // CURL http POST request
 int PostPuzzleSolution(

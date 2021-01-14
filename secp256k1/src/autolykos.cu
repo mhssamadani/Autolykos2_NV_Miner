@@ -55,38 +55,18 @@ INITIALIZE_EASYLOGGINGPP
 
 using namespace std::chrono;
 
+std::atomic<int> end_jobs(0);
+
 void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
 {
+	el::Helpers::setThreadName("sender thread");
     while(true)
     {
-        MinerShare share = shQueue->get();
-        char logstr[2048];
-        
-        uint64_t* r = (uint64_t*)share.d;
-        uint64_t* bound = (uint64_t*)(info->bound); 
+		MinerShare share = shQueue->get();
+		char logstr[2048];
 
-        int issol = ((uint64_t *)r)[3] < ((uint64_t *)bound)[3]
-        || (((uint64_t *)r)[3] == ((uint64_t *)bound)[3] && (
-            ((uint64_t *)r)[2] < ((uint64_t *)bound)[2]
-            || ((uint64_t *)r)[2] == ((uint64_t *)bound)[2] && (
-                ((uint64_t *)r)[1] < ((uint64_t *)bound)[1]
-                || ((uint64_t *)r)[1] == ((uint64_t *)bound)[1]
-                && ((uint64_t *)r)[0] < ((uint64_t *)bound)[0]
-            )
-        ));
-        PrintPuzzleSolution((uint8_t*)&share.nonce, (uint8_t*)share.d, logstr);
-        if(issol)
-        {        
-            LOG(INFO) << "Some GPU"
-            << " found and trying to POST a solution:\n" << logstr;
-            PostPuzzleSolution(info->to, (uint8_t*)&share.nonce);
-        }
-        else
-        {
-            LOG(INFO) << "Some GPU"
-            << " found and trying to POST a share to the pool:\n" << logstr;
-            PostPuzzleSolution(info->pool, (uint8_t*)&share.nonce);
-        }
+			LOG(INFO) << "Some GPU found and trying to POST a share: " ;
+			PostPuzzleSolution(info->to, (uint8_t*)&share.nonce);
         
 
     }
@@ -97,7 +77,7 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
 ////////////////////////////////////////////////////////////////////////////////
 //  Miner thread cycle
 ////////////////////////////////////////////////////////////////////////////////
-void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, std::vector<int>* tstamps, BlockQueue<MinerShare>* shQueue)
+void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vector<double>* hashrates, std::vector<int>* tstamps, BlockQueue<MinerShare>* shQueue)
 {
     CUDA_CALL(cudaSetDevice(deviceId));
     cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
@@ -121,7 +101,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     // autolykos variables
     uint8_t bound_h[NUM_SIZE_8];
     uint8_t mes_h[NUM_SIZE_8];
-    uint8_t res_h[NUM_SIZE_8*MAX_SOLS];
     uint8_t nonce[NONCE_SIZE_8];
 
     char to[MAX_URL_SIZE];
@@ -137,7 +116,7 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     info->info_mutex.lock();
 
     memcpy(mes_h, info->mes, NUM_SIZE_8);
-    memcpy(bound_h, info->poolbound, NUM_SIZE_8);
+    memcpy(bound_h, info->bound, NUM_SIZE_8);
     memcpy(to, info->to, MAX_URL_SIZE * sizeof(char));
     // blockId = info->blockId.load();
     keepPrehash = info->keepPrehash;
@@ -184,8 +163,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     CUDA_CALL(cudaMalloc(&hashes_d, (uint32_t)N_LEN * NUM_SIZE_8));
 
     // place to handle result of the puzzle
-    uint32_t * res_d;
-    CUDA_CALL(cudaMalloc(&res_d, NUM_SIZE_8*MAX_SOLS));
     uint32_t * indices_d;
     CUDA_CALL(cudaMalloc(&indices_d, MAX_SOLS*sizeof(uint32_t)));
 
@@ -219,13 +196,10 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
     //========================================================================//
     uint32_t ind = 0;
     uint64_t base = 0;
+	uint64_t EndNonce = 0;
 
-    uint32_t hhh = 0;
+    uint32_t height = 0;
 
-    // set unfinalized hash contexts if necessary
-    if (keepPrehash)
-    {
-    }
 
 
     int cntCycles = 0;
@@ -277,8 +251,18 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
             info->info_mutex.lock();
 
             memcpy(mes_h, info->mes, NUM_SIZE_8);
-            memcpy(bound_h, info->poolbound, NUM_SIZE_8);
-            //memset(bound_h,0,32);
+            memcpy(bound_h, info->bound, NUM_SIZE_8);
+
+
+			//divide nonces between gpus
+			memcpy(&EndNonce, info->extraNonceEnd, NONCE_SIZE_8);
+			memcpy(&base, info->extraNonceStart, NONCE_SIZE_8);
+			uint64_t nonceChunk = 1 + (EndNonce - base) / totalGPUCards;
+			base = *((uint64_t *)info->extraNonceStart) + deviceId * nonceChunk;
+            EndNonce = base + nonceChunk;
+            
+            
+            memcpy(&height,info->Hblock, HEIGHT_SIZE);
 
             info->info_mutex.unlock();
 
@@ -303,7 +287,7 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
 
 
             VLOG(1) << "Starting prehashing with new block data";
-            Prehash(keepPrehash, data_d, uctxs_d, hashes_d, res_d,*((uint32_t *)info->Hblock),info->AlgVer);
+            Prehash(keepPrehash, data_d, uctxs_d, hashes_d,height,info->AlgVer);
             
             // calculate unfinalized hash of message
             VLOG(1) << "Starting InitMining";
@@ -324,13 +308,6 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
 
         // calculate solution candidates
 
-        if(info->AlgVer == 1)
-        {
-	    LOG(INFO) << "Invalid algorithm version";
-            exit(0);   
-	}
-        else
-        {
             // copy message
             CUDA_CALL(cudaMemcpy(
                 ((uint8_t *)data_d), mes_h, NUM_SIZE_8,
@@ -343,53 +320,86 @@ void MinerThread(int deviceId, info_t * info, std::vector<double>* hashrates, st
                 cudaMemcpyHostToDevice
             ));
 
-            // copy H
-            //CUDA_CALL(cudaMemcpy(
-            //    height_d, info->Hblock, HEIGHT_SIZE, cudaMemcpyHostToDevice
-            //));
-            
                         
-            memcpy(&hhh,info->Hblock, HEIGHT_SIZE);
-            BlockMining<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                bound_d, data_d, base,hhh, hashes_d, res_d, indices_d , count_d
-            );
 
-        }
+
+	int threads = THREADS_PER_ITER;
+	uint64_t check = base + threads;
+	if (check > EndNonce)
+	{
+		threads = EndNonce - base;
+	}
+	if (threads <= 0)
+	{
+        LOG(INFO) << " negative threads, ( base: " << base << " , endNonce: " << EndNonce << " ) ";
+    }
+    else
+    {
+            BlockMining<<<1 + (threads - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+                bound_d, data_d, base,height, hashes_d, indices_d , count_d
+            );
+    }
         VLOG(1) << "Trying to find solution";
 
         // restart iteration if new block was found
         if (blockId != info->blockId.load()) { continue; }
 
-        CUDA_CALL(cudaMemcpy(
-            &ind, indices_d, sizeof(uint32_t),
+
+		CUDA_CALL(cudaMemcpy(
+            indices_h, indices_d, MAX_SOLS*sizeof(uint32_t),
             cudaMemcpyDeviceToHost
         ));
-
+		
 
         // solution found
-        if (ind)
+        if (indices_h[0])
         {
-            CUDA_CALL(cudaMemcpy(
-                res_h, res_d , NUM_SIZE_8,
-                cudaMemcpyDeviceToHost
-            ));
             
             
-            *((uint64_t *)nonce) = base + ind - 1;
+			int i = 0;
+			while (indices_h[i] && (i < 16/*MAX_SOLS*/))
+			{
 
-            
-            //PrintPuzzleSolution(nonce, res_h, logstr);
-            LOG(INFO) << "GPU " << deviceId
-            << " found and trying to POST a solution:" ;//<< logstr;
+				*((uint64_t *)nonce) = base + indices_h[i] - 1;
+				uint64_t endNonceT;
+				memcpy(&endNonceT , info->extraNonceEnd , sizeof(uint64_t));
+				if ( (*((uint64_t *)nonce)) <= endNonceT )
+				{
 
-            PostPuzzleSolution(to, nonce);
-    
-            state = STATE_KEYGEN;
+                    MinerShare share(*((uint64_t *)nonce));
+                    shQueue->put(share);
+
+
+                    if (!info->stratumMode)
+                    {
+                        state = STATE_KEYGEN;
+                        //end_jobs.fetch_add(1, std::memory_order_relaxed);
+                        break;
+
+                    }
+
+                }
+		else
+		{
+			//LOG(INFO) << "nonce greater than end nonce, nonce: " << *((uint64_t *)nonce) << " endNonce:  " << endNonceT;
+		}
+		i++;
+	}
+
+            memset(indices_h,0,MAX_SOLS*sizeof(uint32_t));
             CUDA_CALL(cudaMemset(
                 indices_d, 0, sizeof(uint32_t)
             ));
+  			CUDA_CALL(cudaMemset(count_d,0,sizeof(uint32_t)));
+		
         }
        base += NONCES_PER_ITER;
+       if (base > EndNonce) 	//end work
+       {
+           state = STATE_KEYGEN;
+           end_jobs.fetch_add(1, std::memory_order_relaxed);
+       }
+
     }
     while (1);
 }
@@ -451,7 +461,7 @@ int main(int argc, char ** argv)
 
     // read configuration from file
     status = ReadConfig(
-        fileName, from, info.to, info.pool
+        fileName, from, info.to, info.endJob
      );
 
     if (status == EXIT_FAILURE) { return EXIT_FAILURE; }
@@ -487,7 +497,7 @@ int main(int argc, char ** argv)
         {
             devinfos[i] = std::make_pair(props.pciBusID, props.pciDeviceID);
         }
-        miners[i] = std::thread(MinerThread, i, &info, &hashrates, &timestamps, &solQueue);
+        miners[i] = std::thread(MinerThread,deviceCount, i, &info, &hashrates, &timestamps, &solQueue);
         hashrates[i] = 0;
         lastTimestamps[i] = 1;
         timestamps[i] = 0;
@@ -567,6 +577,13 @@ int main(int argc, char ** argv)
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(60));
+
+        int completeMiners = end_jobs.load();
+		if (completeMiners >= deviceCount)
+		{
+			end_jobs.store(0);
+			JobCompleted(info.endJob);
+		}
     }    
 
     return EXIT_SUCCESS;
