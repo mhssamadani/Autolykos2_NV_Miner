@@ -9,7 +9,7 @@ You can find OpenCL miner at:  [OpenCL miner](https://github.com/mhssamadani/Aut
 In order to use this miner with a stratum pool, a stratum proxy is needed.
 - Install [Ergo Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy)
 - Update proxy's [`client.js`](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/client.js)  file:
-  - [port running port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139) (optional. defualt is 3000)
+  - [port running port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139) (optional. default is 3000)
   - [Pool address and port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L7)
 - Start proxy
 - In the miner's config file set node address to the proxy's address
