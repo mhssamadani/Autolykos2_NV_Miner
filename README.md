@@ -1,4 +1,15 @@
-# Reference Cuda Miner for Autolykos v2 (Ergo) for Nvidia GPUs
+# Cuda Miner for Autolykos v2 (Ergo) for Nvidia GPUs
+
+## Stratum Proxy
+
+In order to use this miner with a stratum pool, a stratum proxy is needed.
+- Install [Ergo Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy)
+- Update proxy's [`client.js`](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/client.js)  file:
+  - [port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139)
+  - [Pool address](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L7)
+- Start proxy
+- In the miner's config file set node address to the proxy's address
+ (by default this address is: ```{ "node" : "https://127.0.0.1:3000" }```)
 
 ## Prerequisites (Linux)
 (For Ubuntu 16.04 or 18.04)
@@ -58,19 +69,18 @@ To choose CUDA devices change and use `runner.sh` or directly change environment
 
 To change CUDA devices available to the miner change environment variable `CUDA_VISIBLE_DEVICES` , for example ` set CUDA_VISIBLE_DEVICES="0,1" `
 
-## Stratum Proxy
-
-In order to use this miner with a stratum pool, a stratum proxy is needed.
-- [install Ergo Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy)
-- you can update proxy's [`client.js`](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/client.js)  file:
-  - [port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139)
-  - [Pool address]((https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L7))
-- start proxy
-- in the miner's config file set node address to the proxy's address
- (by default this address is: http://127.0.0.1:3000)
-
 ## HTTP Info
 
 Miner has a HTTP info page located at `http://miningnode:36207` (one can change default port by adding `-DHTTPAPI_PORT XXXX` to Makefile).
 
 It outputs total hashrate, and per-GPU hashrates, power usages and temperatures in JSON format (relies on NVML, can fail if NVML fails - if so, JSON contains error field).
+
+# Donations and Support
+
+Note that the miner is free to use and we do not charge any fee from what you mine. To support all the work we're doing, we welcome donations from ERGO miners!
+
+Bitcoin: 3KkwygpCLs1oEi9aTozFxYunoASV6ZrykJ
+
+Bitcoin: bc1q7flay376e5mcp4ljjxpdp7r6p8yajcjm5mu6wd
+
+ERGO: 9fFUw6DqRuyFCv13nQyoDuDz4TiR4GvVvWRcSvqzs39eBVcb5S1
