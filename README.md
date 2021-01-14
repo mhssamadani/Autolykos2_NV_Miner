@@ -1,5 +1,9 @@
 # Cuda Miner for Autolykos v2 (Ergo) for Nvidia GPUs
 
+Cuda miner for [ergoplatform.com](https://github.com/ergoplatform)
+
+You can find OpenCL miner at:  [OpenCL miner](https://github.com/mhssamadani/Autolykos2_AMD_Miner)
+
 ## Stratum Proxy
 
 In order to use this miner with a stratum pool, a stratum proxy is needed.
