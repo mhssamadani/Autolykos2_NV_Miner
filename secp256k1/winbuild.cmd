@@ -8,7 +8,7 @@ nvcc -o ../miner.exe -Xcompiler "/std:c++14" -gencode arch=compute_%CUDA_COMPUTE
  -gencode arch=compute_30,code=compute_30 -DBLOCK_DIM=%BLOCK_DIM% -DNONCES_PER_ITER=%WORKSPACE%^
  -I %OPENSSL_DIR%\include ^
  -I %LIBCURL_DIR%\include ^
- -l %LIBCURL_DIR%\builds\libcurl-vc-x64-release-dll-ipv6-sspi-winssl-obj-lib/libcurl ^
+ -l %LIBCURL_DIR%\lib\libcurl ^
  -l %OPENSSL_DIR%\lib\libeay32 -L %OPENSSL_DIR%/lib ^
  -lnvml ^
 conversion.cc cryptography.cc definitions.cc jsmn.c httpapi.cc ^
