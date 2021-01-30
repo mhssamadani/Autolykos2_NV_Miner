@@ -5,7 +5,7 @@ Cuda miner for [ergoplatform.com](https://github.com/ergoplatform)
 You can find OpenCL miner at:  [OpenCL miner](https://github.com/mhssamadani/Autolykos2_AMD_Miner)
 
 # Quick Pooled Mining Start
-1- Donwload the [miner](https://github.com/mhssamadani/Autolykos2_NV_Miner/releases) for desired OS.
+1- Download the [miner](https://github.com/mhssamadani/Autolykos2_NV_Miner/releases) for desired OS.
 
 2- Run the [ErgoStratumProxy](https://github.com/mhssamadani/ErgoStratumProxy/releases) executable (Bundled with the miner release)
 - In Windows PowerShell:
