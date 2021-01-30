@@ -4,16 +4,29 @@ Cuda miner for [ergoplatform.com](https://github.com/ergoplatform)
 
 You can find OpenCL miner at:  [OpenCL miner](https://github.com/mhssamadani/Autolykos2_AMD_Miner)
 
-## Stratum Proxy
+# Quick Pooled Mining Start
+1- Donwload the [miner](https://github.com/mhssamadani/Autolykos2_NV_Miner/releases) for desired OS.
 
-In order to use this miner with a stratum pool, a stratum proxy is needed.
-- Install [Ergo Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy)
-- Update proxy's [`client.js`](https://github.com/mhssamadani/ErgoStratumProxy/blob/main/client.js)  file:
-  - [port running port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L139) (optional. default is 3000)
-  - [Pool address and port](https://github.com/mhssamadani/ErgoStratumProxy/blob/94b4561fbb857b3dbd227535bca75db311de8d66/client.js#L7)
-- Start proxy
-- In the miner's config file set node address to the proxy's address
- (by default this address is: ```{ "node" : "http://127.0.0.1:3000" }```)
+2- Run the [ErgoStratumProxy](https://github.com/mhssamadani/ErgoStratumProxy/releases) executable (Bundled with the miner release)
+- In Windows PowerShell:
+```
+.\ErgoStratumProxy.exe -s <POOL_ADDRESS> -p <POOL_PORT> -u <WORKER_NAME>
+```
+- In linux:
+```
+./ErgoStratumProxy_Linux -s <POOL_ADDRESS> -p <POOL_PORT> -u <WORKER_NAME>
+```
+
+3- Run the miner 
+
+- If neccessary, edit `config.json`; set node address to the proxy's address (by default this address is: ```{"node":"http://127.0.0.1:3000"}```)
+### HTTP Info
+
+Miner has a HTTP info page located at `http://miningnode:36207` (one can change default port by adding `-DHTTPAPI_PORT XXXX` to Makefile).
+
+It outputs total hashrate, and per-GPU hashrates, power usages and temperatures in JSON format (relies on NVML, can fail if NVML fails - if so, JSON contains error field).
+
+# Build
 
 ## Prerequisites (Linux)
 (For Ubuntu 16.04 or 18.04)
@@ -73,11 +86,14 @@ To choose CUDA devices change and use `runner.sh` or directly change environment
 
 To change CUDA devices available to the miner change environment variable `CUDA_VISIBLE_DEVICES` , for example ` set CUDA_VISIBLE_DEVICES="0,1" `
 
-## HTTP Info
+## Stratum Proxy
 
-Miner has a HTTP info page located at `http://miningnode:36207` (one can change default port by adding `-DHTTPAPI_PORT XXXX` to Makefile).
+In order to use this miner with a stratum pool, a stratum proxy is needed.
+- Download [Ergo Stratum Proxy](https://github.com/mhssamadani/ErgoStratumProxy)
+- Run proxy
+- In the miner's config file set node address to the proxy's address
+ (by default this address is: ```{"node":"http://127.0.0.1:3000"}```)
 
-It outputs total hashrate, and per-GPU hashrates, power usages and temperatures in JSON format (relies on NVML, can fail if NVML fails - if so, JSON contains error field).
 
 # Donations and Support
 
