@@ -23,6 +23,7 @@
 #include "../include/request.h"
 #include "../include/httpapi.h"
 #include "../include/queue.h"
+#include "../include/cpuAutolykos.h"
 #include <ctype.h>
 #include <cuda.h>
 #include <curl/curl.h>
@@ -63,11 +64,9 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
     while(true)
     {
 		MinerShare share = shQueue->get();
-		char logstr[2048];
-
-			LOG(INFO) << "Some GPU found and trying to POST a share: " ;
-			PostPuzzleSolution(info->to, (uint8_t*)&share.nonce);
-        
+		LOG(INFO) << "Some GPU found and trying to POST a share: " ;
+		PostPuzzleSolution(info->to, (uint8_t*)&share.nonce);
+       
 
     }
 
@@ -79,6 +78,8 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
 ////////////////////////////////////////////////////////////////////////////////
 void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vector<double>* hashrates, std::vector<int>* tstamps, BlockQueue<MinerShare>* shQueue)
 {
+	AutolykosAlg solVerifier;
+
     CUDA_CALL(cudaSetDevice(deviceId));
     cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
     char threadName[20];
@@ -86,7 +87,6 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     el::Helpers::setThreadName(threadName);    
 
     state_t state = STATE_KEYGEN;
-    char logstr[1000];
 
     //========================================================================//
     //  Host memory allocation
@@ -194,10 +194,8 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     //========================================================================//
     //  Autolykos puzzle cycle
     //========================================================================//
-    uint32_t ind = 0;
     uint64_t base = 0;
-	uint64_t EndNonce = 0;
-
+    uint64_t EndNonce = 0;
     uint32_t height = 0;
 
 
@@ -357,38 +355,49 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             
             
 			int i = 0;
-			while (indices_h[i] && (i < 16/*MAX_SOLS*/))
+			while (indices_h[i] && (i < 16/*MAX_SOLS*/) && (blockId == info->blockId.load()) )
 			{
+				if(!info->stratumMode && i != 0)
+				{
+					break ;
+				}
 
 				*((uint64_t *)nonce) = base + indices_h[i] - 1;
 				uint64_t endNonceT;
 				memcpy(&endNonceT , info->extraNonceEnd , sizeof(uint64_t));
 				if ( (*((uint64_t *)nonce)) <= endNonceT )
 				{
+					//LOG(INFO) << "sol check i: " << i << " sol index: "<< indices_h[i]; 	
+					bool checksol = solVerifier.RunAlg(info->mes,nonce,info->bound,info->Hblock);
+					if (checksol)
+					{
+						MinerShare share(*((uint64_t *)nonce));
+						shQueue->put(share);
 
-                    MinerShare share(*((uint64_t *)nonce));
-                    shQueue->put(share);
 
-
-                    if (!info->stratumMode)
-                    {
-                        state = STATE_KEYGEN;
-                        //end_jobs.fetch_add(1, std::memory_order_relaxed);
-                        break;
-
-                    }
+						if (!info->stratumMode)
+						{
+							state = STATE_KEYGEN;
+							//end_jobs.fetch_add(1, std::memory_order_relaxed);
+							break;
+						}
+					}
+					else
+					{
+						LOG(INFO) << " problem in verify solution, nonce: " << *((uint64_t *)nonce);
+					}
 
                 }
 		else
 		{
-			//LOG(INFO) << "nonce greater than end nonce, nonce: " << *((uint64_t *)nonce) << " endNonce:  " << endNonceT;
+			LOG(INFO) << "nonce greater than end nonce, nonce: " << *((uint64_t *)nonce) << " endNonce:  " << endNonceT;
 		}
 		i++;
 	}
 
             memset(indices_h,0,MAX_SOLS*sizeof(uint32_t));
             CUDA_CALL(cudaMemset(
-                indices_d, 0, sizeof(uint32_t)
+                indices_d, 0, MAX_SOLS*sizeof(uint32_t)
             ));
   			CUDA_CALL(cudaMemset(count_d,0,sizeof(uint32_t)));
 		
@@ -420,9 +429,7 @@ int main(int argc, char ** argv)
 
     el::Helpers::setThreadName("main thread");
 
-    char logstr[1000];
-
-
+  
     //========================================================================//
     //  Check GPU availability
     //========================================================================//

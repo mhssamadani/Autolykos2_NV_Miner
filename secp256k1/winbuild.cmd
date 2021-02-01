@@ -11,8 +11,8 @@ nvcc -o ../miner.exe -Xcompiler "/std:c++14" -gencode arch=compute_%CUDA_COMPUTE
  -l %LIBCURL_DIR%\lib\libcurl ^
  -l %OPENSSL_DIR%\lib\libeay32 -L %OPENSSL_DIR%/lib ^
  -lnvml ^
-conversion.cc cryptography.cc definitions.cc jsmn.c httpapi.cc ^
-mining.cu prehash.cu processing.cc request.cc easylogging++.cc autolykos.cu
+cpuAutolykos.cc conversion.cc cryptography.cc definitions.cc jsmn.c httpapi.cc ^
+mining.cu prehash.cu processing.cc request.cc easylogging++.cc autolykos.cu 
 
 cd ..
 SET PATH=%PATH%;C:\Program Files\NVIDIA Corporation\NVSMI
