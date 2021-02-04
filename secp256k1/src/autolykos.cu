@@ -550,7 +550,7 @@ int main(int argc, char ** argv)
         );
         
         // get latest block
-//        status = GetLatestBlock(from, &request, &info, 0);
+        status = GetLatestBlock(from, &request, &info, 0);
         
         if (status != EXIT_SUCCESS) { LOG(INFO) << "Getting block error"; }
 
