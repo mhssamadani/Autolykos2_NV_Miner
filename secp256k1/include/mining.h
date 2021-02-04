@@ -19,15 +19,24 @@ void InitMining(
     const uint32_t meslen
 );
 
+__global__	void BlockMiningPH1(
+		const  uint32_t * ctx_m,
+		// nonce base
+		const uint64_t base,
+        ctx_t * ctx_mn
+		);
+
+
 // block mining iteration
-__global__ void BlockMining(
+__global__ void BlockMiningPH2(
 
     // boundary for puzzle
     const uint32_t * bound,
 
-    // data:  mes  ctx
-    const uint32_t * data,
+    // data:  mes  
+    const uint32_t * mes,
 
+    ctx_t * ctx_mn, 
     // nonce base
     const uint64_t base,
 
@@ -43,4 +52,7 @@ __global__ void BlockMining(
 
     uint32_t * count
 );
+
+
 #endif // MINING_H
+
