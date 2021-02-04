@@ -261,7 +261,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 			base = *((uint64_t *)info->extraNonceStart) + deviceId * nonceChunk;
             EndNonce = base + nonceChunk;
             
-//    base = 176160768;
+
             
             memcpy(&height,info->Hblock, HEIGHT_SIZE);
 
@@ -352,7 +352,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             indices_h, indices_d, MAX_SOLS*sizeof(uint32_t),
             cudaMemcpyDeviceToHost
         ));
-//exit(0);
+
 		
 
         // solution found
@@ -383,7 +383,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
 						if (!info->stratumMode)
 						{
-							//state = STATE_KEYGEN;
+							state = STATE_KEYGEN;
 							//end_jobs.fetch_add(1, std::memory_order_relaxed);
 							break;
 						}
