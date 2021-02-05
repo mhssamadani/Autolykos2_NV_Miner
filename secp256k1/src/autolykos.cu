@@ -261,7 +261,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 			base = *((uint64_t *)info->extraNonceStart) + deviceId * nonceChunk;
             EndNonce = base + nonceChunk;
             
-//    base = 176160768;
+
             
             memcpy(&height,info->Hblock, HEIGHT_SIZE);
 
@@ -295,6 +295,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
             
             CUDA_CALL(cudaDeviceSynchronize());
+			LOG(INFO) << "GPU " << deviceId << " started";
             
             // copy context
             CUDA_CALL(cudaMemcpy(
@@ -352,8 +353,9 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             indices_h, indices_d, MAX_SOLS*sizeof(uint32_t),
             cudaMemcpyDeviceToHost
         ));
-//exit(0);
+
 		
+		//exit(0);
 
         // solution found
         if (indices_h[0])
@@ -383,7 +385,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
 						if (!info->stratumMode)
 						{
-							//state = STATE_KEYGEN;
+							state = STATE_KEYGEN;
 							//end_jobs.fetch_add(1, std::memory_order_relaxed);
 							break;
 						}

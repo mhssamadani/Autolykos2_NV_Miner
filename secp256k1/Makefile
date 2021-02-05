@@ -15,14 +15,14 @@ LIBS = -L/usr/local/lib -lcurl -I/usr/local/include -lssl -lcrypto -lnvidia-ml
 
 # stub config content
 CONFIG = '{ \
-			 "node": "http://188.166.89.71:9052" \
+			 "node": "http://127.0.0.1:3000" \
 		 }'
 
 # compiler settings
 CXX = nvcc
 CFLAGS = -c --compiler-options -Wall
 CXXFLAGS = -c $(STD) --compiler-options -Wall
-COPT = -O3
+COPT = -O2
 
 # find CUDA compute capability
 SMS ?= $(shell nvcc -h | grep "compute" | sed -e "s/['=, \d40\d41]/\n/g" \
@@ -33,9 +33,8 @@ ifeq ($(GENCODE_FLAGS),)
 ### useful ### $(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 HIGHEST_SM = $(strip $(lastword $(SMS)))
 ifneq ($(HIGHEST_SM),)
-GENCODE_FLAGS += -gencode arch=compute_$(CUDAARCH),code=sm_$(CUDAARCH) \
-	-gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM) \
-	-gencode arch=compute_30,code=compute_30  # default arch for compatibility
+GENCODE_FLAGS += -gencode arch=compute_61,code=compute_61 \
+	-gencode arch=compute_75,code=compute_75
 endif
 endif
 
@@ -62,9 +61,11 @@ OBJECTS = $(CUSOURCES:.cu=.o) $(CPPSOURCES:.cc=.o) $(CSOURCES:.c=.o)
 AUTOEXEC = auto.out
 TESTEXEC = test.out
 
+#-dlcm
+#-Xptxas -dlcm=ca -use_fast_math
 # compile objects
 %.o: %.cu
-	$(CXX) $(COPT) $(CXXFLAGS) $(GENCODE_FLAGS) --maxrregcount $(MAXREG) \
+	$(CXX) -Xptxas -dlcm=cs -use_fast_math $(COPT) $(CXXFLAGS) $(GENCODE_FLAGS) --maxrregcount $(MAXREG) \
 		-DBLOCK_DIM=$(BLOCKDIM) -DNONCES_PER_ITER=$(WORKSPACE) $< -o $@
 %.o: %.cc
 	$(CXX) $(COPT) $(CXXFLAGS) $(EMBED) $< -o $@

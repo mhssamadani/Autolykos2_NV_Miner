@@ -60,7 +60,7 @@ a config file `Autolykos2_NV_Miner/secp256k1/config.json` with stub contents.
 3. Download OpenSSL 1.0.2 [installer from slproweb.com](https://slproweb.com/download/Win64OpenSSL-1_0_2u.exe)
 4. Edit `secp256k1/winbuild.cmd` file, change `OPENSSL_DIR`, `LIBCURL_DIR` to your libcurl and OpenSSL directories, change `CUDA_COMPUTE_ARCH` to GPU code architecture you want
 5. Find `vcvars64.bat` script, it should be in `VISUAL_STUDIO_INSTALL_DIRECTORY\VC\Auxiliary\Build`
-6. Run cmd.exe, run `vcvars64.bat` script, then change dir to secp256k1, then run `buildwin.cmd`
+6. Run cmd.exe, run `vcvars64.bat` script, then change dir to secp256k1, then run `winbuild.cmd`
 7. If everything went good, `miner.exe` should appear in `secp256k1` directory 
 8. If `miner.exe` can't find `nvml.dll`, add `C:\Program Files\NVIDIA Corporation\NVSMI` to your PATH environment variable before running.
 
