@@ -169,12 +169,23 @@ __global__ void InitPrehash(
                 = ((uint8_t *)ldata)[i];
         }
         ((uint8_t *)hashes)[tid * NUM_SIZE_8 +NUM_SIZE_8-1 ] = 0; 
+
+/*
+        if(tid == 40577321)
+        {
+            for (int i = 0; i < NUM_SIZE_8; ++i) 
+            {
+                printf("\n %d %d ",  ((uint8_t *)ldata)[i] , ((uint8_t *)hashes)[tid * NUM_SIZE_8 +i ]);
+            }    
+        }
+ */       
  
     }
 
     return;
 }
 // prehash.cu
+
 
 
 
