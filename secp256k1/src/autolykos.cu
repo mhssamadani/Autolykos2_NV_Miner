@@ -309,21 +309,23 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
         //LOG(INFO) << "Starting main BlockMining procedure";
 
         // calculate solution candidates
-    CUDA_CALL(cudaMemcpy(
-        ((uint8_t *)data_d), &ctx_h, sizeof(ctx_t),
-        cudaMemcpyHostToDevice
-    ));
-    int threads = NONCES_PER_ITER / 256;
-    BlockMiningPH1<<<1 + (threads - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-        data_d, base,(ctx_t *)ctxuh_d
-    );
-    //---------------------
-    // copy message
-    CUDA_CALL(cudaMemcpy(
-        ((uint8_t *)data_d), mes_h, NUM_SIZE_8,
-        cudaMemcpyHostToDevice
-    ));
-	threads = THREADS_PER_ITER;
+
+            // copy message
+            CUDA_CALL(cudaMemcpy(
+                ((uint8_t *)data_d), mes_h, NUM_SIZE_8,
+                cudaMemcpyHostToDevice
+            ));
+
+            
+            CUDA_CALL(cudaMemcpy(
+                ((uint8_t *)data_d)+ NUM_SIZE_8, &ctx_h, sizeof(ctx_t),
+                cudaMemcpyHostToDevice
+            ));
+
+                        
+
+
+	int threads = THREADS_PER_ITER;
 	uint64_t check = base + threads;
 	if (check > EndNonce)
 	{
@@ -335,14 +337,10 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     }
     else
     {
-            BlockMiningPH2<<<1 + (threads - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                bound_d, data_d,(ctx_t *)ctxuh_d,  base,height, hashes_d, indices_d , count_d
+            BlockMining<<<1 + (threads - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+                bound_d, data_d, base,height, hashes_d, indices_d , count_d
             );
     }
-
-
-
-
         VLOG(1) << "Trying to find solution";
 
         // restart iteration if new block was found
@@ -353,7 +351,6 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             indices_h, indices_d, MAX_SOLS*sizeof(uint32_t),
             cudaMemcpyDeviceToHost
         ));
-
 		
 		//exit(0);
 
@@ -537,7 +534,7 @@ int main(int argc, char ** argv)
     //  Main thread get-block cycle
     //========================================================================//
     uint_t curlcnt = 0;
-    const uint_t curltimes = 100;//500;
+    const uint_t curltimes = 500;
 
     milliseconds ms = milliseconds::zero(); 
     

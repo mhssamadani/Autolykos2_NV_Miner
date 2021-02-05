@@ -1,6 +1,6 @@
-SET "OPENSSL_DIR=C:\OpenSSL-Win64"
-SET "LIBCURL_DIR=E:\Ergo\InstalledOnICTI\curl-master\builds\libcurl-vc-x64-release-dll-ipv6-sspi-winssl"
-SET "CUDA_COMPUTE_ARCH=60"
+SET "OPENSSL_DIR=C:\openssl102"
+SET "LIBCURL_DIR=C:\Users\mam0nt\curl""
+SET "CUDA_COMPUTE_ARCH=61"
 SET "BLOCK_DIM=64"
 SET "WORKSPACE=0x400000"
 cd src
