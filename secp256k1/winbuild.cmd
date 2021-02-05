@@ -1,11 +1,11 @@
 SET "OPENSSL_DIR=C:\openssl102"
 SET "LIBCURL_DIR=C:\Users\mam0nt\curl"
-SET "CUDA_COMPUTE_ARCH=60"
+SET "CUDA_COMPUTE_ARCH=61"
 SET "BLOCK_DIM=64"
 SET "WORKSPACE=0x400000"
 cd src
 nvcc -o ../miner.exe -Xcompiler "/std:c++14" -gencode arch=compute_%CUDA_COMPUTE_ARCH%,code=sm_%CUDA_COMPUTE_ARCH%^
- -gencode arch=compute_30,code=compute_30 -DBLOCK_DIM=%BLOCK_DIM% -DNONCES_PER_ITER=%WORKSPACE%^
+ -DBLOCK_DIM=%BLOCK_DIM% -DNONCES_PER_ITER=%WORKSPACE%^
  -I %OPENSSL_DIR%\include ^
  -I %LIBCURL_DIR%\include ^
  -l %LIBCURL_DIR%\lib\libcurl ^

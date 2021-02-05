@@ -294,6 +294,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
             
             CUDA_CALL(cudaDeviceSynchronize());
+			LOG(INFO) << "GPU " << deviceId << " started";
             
             // copy context
             CUDA_CALL(cudaMemcpy(
@@ -350,6 +351,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             cudaMemcpyDeviceToHost
         ));
 		
+		//exit(0);
 
         // solution found
         if (indices_h[0])
@@ -388,7 +390,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
             memset(indices_h,0,MAX_SOLS*sizeof(uint32_t));
             CUDA_CALL(cudaMemset(
-                indices_d, 0, sizeof(uint32_t)
+                indices_d, 0, MAX_SOLS*sizeof(uint32_t)
             ));
   			CUDA_CALL(cudaMemset(count_d,0,sizeof(uint32_t)));
 		

@@ -11,6 +11,32 @@
 #include "../include/definitions.h"
 #include <cuda.h>
 
+__device__ __forceinline__
+static void store32(ctx_t *ctx, uint32_t num32)
+{
+	int len = ctx->c;
+	ctx->b[0 + len] = (num32 >> 24) & 0xFF;
+	ctx->b[1 + len] = (num32 >> 16) & 0xFF;
+	ctx->b[2 + len] = (num32 >> 8) & 0xFF;
+	ctx->b[3 + len] = num32 & 0xFF;
+	ctx->c += 4;
+}
+
+__device__ __forceinline__
+static void store64(ctx_t *ctx, uint64_t num64)
+{
+	int len = ctx->c;
+	ctx->b[0 + len] = (num64 >> 56) & 0xFF;
+	ctx->b[1 + len] = (num64 >> 48) & 0xFF;
+	ctx->b[2 + len] = (num64 >> 40) & 0xFF;
+	ctx->b[3 + len] = (num64 >> 32) & 0xFF;
+	ctx->b[4 + len] = (num64 >> 24) & 0xFF;
+	ctx->b[5 + len] = (num64 >> 16) & 0xFF;
+	ctx->b[6 + len] = (num64 >> 8) & 0xFF;
+	ctx->b[7 + len] = num64 & 0xFF;
+	ctx->c += 8;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  Precalculate hashes
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,9 +77,6 @@ __global__ void InitPrehash(
 {
     uint32_t tid = threadIdx.x;
 
-    // shared memory
-    __shared__ uint32_t sdata[ROUND_PNP_SIZE_32];
-
     tid += blockDim.x * blockIdx.x;
 
     if (tid < N_LEN)
@@ -81,15 +104,12 @@ __global__ void InitPrehash(
         //====================================================================//
         //  Hash tid
         //====================================================================//
-#pragma unroll
-        for (j = 0; ctx->c < BUF_SIZE_8 && j < INDEX_SIZE_8; ++j)
-        {
-            ctx->b[ctx->c++] = ((const uint8_t *)&tid)[INDEX_SIZE_8 - j - 1];
-        }
+		store32(ctx,  tid);
 
         //====================================================================//
         //  Hash height
         //====================================================================//
+		//store32(ctx,  height);
         #pragma unroll
         for (j = 0; ctx->c < BUF_SIZE_8 && j < HEIGHT_SIZE ; ++j)
         {
@@ -99,29 +119,33 @@ __global__ void InitPrehash(
         //====================================================================//
         //  Hash constant message
         //====================================================================//
-#pragma unroll
-        for (j = 0; ctx->c < BUF_SIZE_8 && j < CONST_MES_SIZE_8; ++j)
+		uint64_t k=0;
+		#pragma unroll 15
+		for (int i=0; i<15; i++)
         {
-            ctx->b[ctx->c++]
-                = (
-                    !((7 - (j & 7)) >> 1)
-                    * ((j >> 3) >> (((~(j & 7)) & 1) << 3))
-                ) & 0xFF;
-        }
+			store64(ctx, k);
+			k++;
+		}
+		//store64_hi(ctx, k);
+		DEVICE_B2B_H(ctx, aux); //128-bytes
 
-        while (j < CONST_MES_SIZE_8)
+		#pragma unroll 63
+		for (int j=0; j<63; j++)
         {
-            DEVICE_B2B_H(ctx, aux);
+			//store64_low(ctx, k);
+			#pragma unroll 16
+			for (int i=0; i<16; i++)
+			{
+				store64(ctx, k);
+				k++;
+			}
+			//k++;
+			//store64_hi(ctx, k);
+			DEVICE_B2B_H(ctx, aux);
+		}
+		//store64_low(ctx, k);
 
-            for ( ; ctx->c < BUF_SIZE_8 && j < CONST_MES_SIZE_8; ++j)
-            {
-                ctx->b[ctx->c++]
-                    = (
-                        !((7 - (j & 7)) >> 1)
-                        * ((j >> 3) >> (((~(j & 7)) & 1) << 3))
-                    ) & 0xFF;
-            }
-        }
+		store64(ctx, k);
 
          //====================================================================//
         //  Finalize hash
