@@ -41,30 +41,16 @@ static void store64(ctx_t *ctx, uint64_t num64)
 //  Precalculate hashes
 ////////////////////////////////////////////////////////////////////////////////
 int Prehash(
-    const int keep,
-    // data: pk || mes || w || padding || x || sk
-    const uint32_t * data,
-    // unfinalized hashes contexts
-    uctx_t * uctxs,
-    // hashes
     uint32_t * hashes,
-    uint32_t  height , 
-    uint8_t  AlgVer 
+    uint32_t  height 
 )
 {
 
-    if(AlgVer == 1)
-    {
-        return EXIT_FAILURE ;
-    }
-    else
-    {
-        InitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-            height, hashes
-        );
-        CUDA_CALL(cudaPeekAtLastError());
+    InitPrehash<<<1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM>>>(
+        height, hashes
+    );
+    CUDA_CALL(cudaPeekAtLastError());
 
-    }
     return EXIT_SUCCESS;
     
 }

@@ -13,15 +13,9 @@ __global__ void InitPrehash(
 
 // precalculate hashes
 int Prehash(
-    const int keep,
-    // 
-    const uint32_t * data,
-    // uncomplete hash contexts
-    uctx_t * uctxs,
     // hashes
     uint32_t * hashes,
-    uint32_t  height,
-    uint8_t  AlgVer
+    uint32_t  height
 );
 
 
