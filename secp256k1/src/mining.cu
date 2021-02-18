@@ -9,13 +9,15 @@
 #include "../include/mining.h"
 #include <cuda.h>
 
-__device__ __forceinline__ uint32_t ld_gbl_cs(const  uint32_t *p) {
+//__constant__ uint32_t nTest = 419430;
+
+__device__ __forceinline__ uint32_t ld_gbl_cs(const  uint32_t * __restrict__ p) {
 	uint32_t v;
 	asm("ld.global.cs.u32 %0, [%1];" : "=r"(v) : "l"(p));
 	return v;
 }
 
-__device__ __forceinline__ uint4 ld_gbl_cs_v4(const  uint4* p) {
+__device__ __forceinline__ uint4 ld_gbl_cs_v4(const  uint4 * __restrict__ p) {
 	uint4 v;
 	asm("ld.global.cs.v4.u32 {%0, %1, %2, %3}, [%4];" : "=r"(v.x), "=r"(v.y), "=r"(v.z), "=r"(v.w) : "l"(p));
 	return v;
@@ -44,7 +46,7 @@ __device__ __forceinline__ uint2 vectorize(const uint64_t x)
 	return result;
 }
 
-__device__ __forceinline__ 
+__device__ __forceinline__
 uint64_t devROTR64(uint64_t b, int offset)
 {
 	uint2 a;
@@ -83,196 +85,196 @@ uint2 __swap_hilo(const uint2 source)
 }
 
 __device__ __forceinline__
-void devB2B_G(uint64_t* v, int a, int b, int c, int d, uint64_t x, uint64_t y)                                            
-{                                                                              
-    ((uint64_t *)(v))[a] += ((uint64_t *)(v))[b] + x;                          
-    ((uint64_t *)(v))[d]                                                       
-        = devROTR64(((uint64_t *)(v))[d] ^ ((uint64_t *)(v))[a], 32);             
-    ((uint64_t *)(v))[c] += ((uint64_t *)(v))[d];                              
-    ((uint64_t *)(v))[b]                                                       
-        = devROTR64(((uint64_t *)(v))[b] ^ ((uint64_t *)(v))[c], 24);             
-    ((uint64_t *)(v))[a] += ((uint64_t *)(v))[b] + y;                          
-    ((uint64_t *)(v))[d]                                                       
-        = devROTR64(((uint64_t *)(v))[d] ^ ((uint64_t *)(v))[a], 16);             
-    ((uint64_t *)(v))[c] += ((uint64_t *)(v))[d];                              
-    ((uint64_t *)(v))[b]                                                       
-        = devROTR64(((uint64_t *)(v))[b] ^ ((uint64_t *)(v))[c], 63);             
-}     
+void devB2B_G(uint64_t* v, int a, int b, int c, int d, uint64_t x, uint64_t y)
+{
+    ((uint64_t *)(v))[a] += ((uint64_t *)(v))[b] + x;
+    ((uint64_t *)(v))[d]
+        = devROTR64(((uint64_t *)(v))[d] ^ ((uint64_t *)(v))[a], 32);
+    ((uint64_t *)(v))[c] += ((uint64_t *)(v))[d];
+    ((uint64_t *)(v))[b]
+        = devROTR64(((uint64_t *)(v))[b] ^ ((uint64_t *)(v))[c], 24);
+    ((uint64_t *)(v))[a] += ((uint64_t *)(v))[b] + y;
+    ((uint64_t *)(v))[d]
+        = devROTR64(((uint64_t *)(v))[d] ^ ((uint64_t *)(v))[a], 16);
+    ((uint64_t *)(v))[c] += ((uint64_t *)(v))[d];
+    ((uint64_t *)(v))[b]
+        = devROTR64(((uint64_t *)(v))[b] ^ ((uint64_t *)(v))[c], 63);
+}
 
 
 __device__ __forceinline__
 void devB2B_MIX(uint64_t* v, uint64_t* m)                                                                                                                                 \
-{                                                                              
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 3]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 5]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 9]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[11]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[13]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[15]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[14], ((uint64_t *)(m))[10]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 8]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[15]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 3]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 8]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 0]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[15], ((uint64_t *)(m))[13]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[10], ((uint64_t *)(m))[14]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 4]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 9]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[13], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[11], ((uint64_t *)(m))[14]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[10]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 0]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[15], ((uint64_t *)(m))[ 8]);     
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 0]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 4]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[10], ((uint64_t *)(m))[15]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[14], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[11], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 8]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[13]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[10]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[11]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 3]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[13]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 5]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[15], ((uint64_t *)(m))[14]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 9]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 5]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[15]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[13]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[10]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 3]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[11]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[13], ((uint64_t *)(m))[11]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[14]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 9]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 0]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[15], ((uint64_t *)(m))[ 4]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[10]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[15]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[14], ((uint64_t *)(m))[ 9]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 3]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 8]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 4]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[10], ((uint64_t *)(m))[ 5]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 4]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 5]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[15], ((uint64_t *)(m))[11]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[14]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 0]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 1]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 3]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 5]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 9]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[11]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[13]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[15]);      
-                                                                               
-    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[14], ((uint64_t *)(m))[10]);      
-    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 8]);      
-    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[15]);      
-    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 6]);      
-    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[12]);      
-    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 2]);      
-    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 7]);      
-    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 3]);      
-}   
+{
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 3]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 5]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 9]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[11]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[13]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[15]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[14], ((uint64_t *)(m))[10]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 8]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[15]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 3]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 8]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 0]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[15], ((uint64_t *)(m))[13]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[10], ((uint64_t *)(m))[14]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 4]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 9]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[13], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[11], ((uint64_t *)(m))[14]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[10]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 0]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[15], ((uint64_t *)(m))[ 8]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 0]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 4]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[10], ((uint64_t *)(m))[15]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[14], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[11], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 8]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[13]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[10]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[11]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 3]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[13]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 5]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[15], ((uint64_t *)(m))[14]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 9]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 5]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[15]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[13]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[10]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 3]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[11]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[13], ((uint64_t *)(m))[11]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[14]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[ 9]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 0]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[15], ((uint64_t *)(m))[ 4]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[10]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[15]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[14], ((uint64_t *)(m))[ 9]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 3]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 8]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[12], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 4]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[10], ((uint64_t *)(m))[ 5]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 4]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 7], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[ 5]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[15], ((uint64_t *)(m))[11]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[14]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[ 3], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 0]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 1]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 2], ((uint64_t *)(m))[ 3]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 5]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[ 6], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 8], ((uint64_t *)(m))[ 9]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[10], ((uint64_t *)(m))[11]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[12], ((uint64_t *)(m))[13]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[14], ((uint64_t *)(m))[15]);
+
+    devB2B_G(v, 0, 4,  8, 12, ((uint64_t *)(m))[14], ((uint64_t *)(m))[10]);
+    devB2B_G(v, 1, 5,  9, 13, ((uint64_t *)(m))[ 4], ((uint64_t *)(m))[ 8]);
+    devB2B_G(v, 2, 6, 10, 14, ((uint64_t *)(m))[ 9], ((uint64_t *)(m))[15]);
+    devB2B_G(v, 3, 7, 11, 15, ((uint64_t *)(m))[13], ((uint64_t *)(m))[ 6]);
+    devB2B_G(v, 0, 5, 10, 15, ((uint64_t *)(m))[ 1], ((uint64_t *)(m))[12]);
+    devB2B_G(v, 1, 6, 11, 12, ((uint64_t *)(m))[ 0], ((uint64_t *)(m))[ 2]);
+    devB2B_G(v, 2, 7,  8, 13, ((uint64_t *)(m))[11], ((uint64_t *)(m))[ 7]);
+    devB2B_G(v, 3, 4,  9, 14, ((uint64_t *)(m))[ 5], ((uint64_t *)(m))[ 3]);
+}
 
 __device__ __forceinline__
 void devDEVICE_B2B_H_LAST(ctx_t *ctx, uint64_t* aux)                                                                                                                   \
-{                                                                              
-    asm volatile (                                                             
-        "add.cc.u32 %0, %0, %1;":                                              
-        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[0]):                            
-        "r"(((ctx_t *)(ctx))->c)                                               
-    );                                                                         
-    asm volatile (                                                             
-        "addc.cc.u32 %0, %0, 0;":                                              
-        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[1])                             
-    );                                                                         
-    asm volatile (                                                             
-        "addc.cc.u32 %0, %0, 0;":                                              
-        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[2])                             
-    );                                                                         
-    asm volatile (                                                             
-        "addc.u32 %0, %0, 0;":                                                 
-        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[3])                             
-    );                                                                         
-                                                                               
-    while (((ctx_t *)(ctx))->c < BUF_SIZE_8)                                   
-    {                                                                          
-        ((ctx_t *)(ctx))->b[((ctx_t *)(ctx))->c++] = 0;                        
-    }                                                                          
-                                                                               
-    ((uint64_t *)(aux))[0] = ((ctx_t *)(ctx))->h[0];                           
-    ((uint64_t *)(aux))[1] = ((ctx_t *)(ctx))->h[1];                           
-    ((uint64_t *)(aux))[2] = ((ctx_t *)(ctx))->h[2];                           
-    ((uint64_t *)(aux))[3] = ((ctx_t *)(ctx))->h[3];                           
-    ((uint64_t *)(aux))[4] = ((ctx_t *)(ctx))->h[4];                           
-    ((uint64_t *)(aux))[5] = ((ctx_t *)(ctx))->h[5];                           
-    ((uint64_t *)(aux))[6] = ((ctx_t *)(ctx))->h[6];                           
-    ((uint64_t *)(aux))[7] = ((ctx_t *)(ctx))->h[7];                           
-                                                                               
-    B2B_IV(aux + 8);                                                           
-                                                                               
-    ((uint64_t *)(aux))[12] ^= ((ctx_t *)(ctx))->t[0];                         
-    ((uint64_t *)(aux))[13] ^= ((ctx_t *)(ctx))->t[1];                                                        
-                                                                               
-    ((uint64_t *)(aux))[14] = ~((uint64_t *)(aux))[14];                        
-                                                                               
-    ((uint64_t *)(aux))[16] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 0];         
-    ((uint64_t *)(aux))[17] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 1];         
-    ((uint64_t *)(aux))[18] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 2];         
-    ((uint64_t *)(aux))[19] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 3];         
-    ((uint64_t *)(aux))[20] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 4];         
-    ((uint64_t *)(aux))[21] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 5];         
-    ((uint64_t *)(aux))[22] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 6];         
-    ((uint64_t *)(aux))[23] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 7];         
-    ((uint64_t *)(aux))[24] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 8];         
-    ((uint64_t *)(aux))[25] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 9];         
-    ((uint64_t *)(aux))[26] = ((uint64_t *)(((ctx_t *)(ctx))->b))[10];         
-    ((uint64_t *)(aux))[27] = ((uint64_t *)(((ctx_t *)(ctx))->b))[11];         
-    ((uint64_t *)(aux))[28] = ((uint64_t *)(((ctx_t *)(ctx))->b))[12];         
-    ((uint64_t *)(aux))[29] = ((uint64_t *)(((ctx_t *)(ctx))->b))[13];         
-    ((uint64_t *)(aux))[30] = ((uint64_t *)(((ctx_t *)(ctx))->b))[14];         
-    ((uint64_t *)(aux))[31] = ((uint64_t *)(((ctx_t *)(ctx))->b))[15];         
-                                                                               
-    devB2B_MIX(aux, aux + 16);                                                    
-                                                                               
+{
+    asm volatile (
+        "add.cc.u32 %0, %0, %1;":
+        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[0]):
+        "r"(((ctx_t *)(ctx))->c)
+    );
+    asm volatile (
+        "addc.cc.u32 %0, %0, 0;":
+        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[1])
+    );
+    asm volatile (
+        "addc.cc.u32 %0, %0, 0;":
+        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[2])
+    );
+    asm volatile (
+        "addc.u32 %0, %0, 0;":
+        "+r"(((uint32_t *)((ctx_t *)(ctx))->t)[3])
+    );
+
+    while (((ctx_t *)(ctx))->c < BUF_SIZE_8)
+    {
+        ((ctx_t *)(ctx))->b[((ctx_t *)(ctx))->c++] = 0;
+    }
+
+    ((uint64_t *)(aux))[0] = ((ctx_t *)(ctx))->h[0];
+    ((uint64_t *)(aux))[1] = ((ctx_t *)(ctx))->h[1];
+    ((uint64_t *)(aux))[2] = ((ctx_t *)(ctx))->h[2];
+    ((uint64_t *)(aux))[3] = ((ctx_t *)(ctx))->h[3];
+    ((uint64_t *)(aux))[4] = ((ctx_t *)(ctx))->h[4];
+    ((uint64_t *)(aux))[5] = ((ctx_t *)(ctx))->h[5];
+    ((uint64_t *)(aux))[6] = ((ctx_t *)(ctx))->h[6];
+    ((uint64_t *)(aux))[7] = ((ctx_t *)(ctx))->h[7];
+
+    B2B_IV(aux + 8);
+
+    ((uint64_t *)(aux))[12] ^= ((ctx_t *)(ctx))->t[0];
+    ((uint64_t *)(aux))[13] ^= ((ctx_t *)(ctx))->t[1];
+
+    ((uint64_t *)(aux))[14] = ~((uint64_t *)(aux))[14];
+
+    ((uint64_t *)(aux))[16] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 0];
+    ((uint64_t *)(aux))[17] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 1];
+    ((uint64_t *)(aux))[18] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 2];
+    ((uint64_t *)(aux))[19] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 3];
+    ((uint64_t *)(aux))[20] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 4];
+    ((uint64_t *)(aux))[21] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 5];
+    ((uint64_t *)(aux))[22] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 6];
+    ((uint64_t *)(aux))[23] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 7];
+    ((uint64_t *)(aux))[24] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 8];
+    ((uint64_t *)(aux))[25] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 9];
+    ((uint64_t *)(aux))[26] = ((uint64_t *)(((ctx_t *)(ctx))->b))[10];
+    ((uint64_t *)(aux))[27] = ((uint64_t *)(((ctx_t *)(ctx))->b))[11];
+    ((uint64_t *)(aux))[28] = ((uint64_t *)(((ctx_t *)(ctx))->b))[12];
+    ((uint64_t *)(aux))[29] = ((uint64_t *)(((ctx_t *)(ctx))->b))[13];
+    ((uint64_t *)(aux))[30] = ((uint64_t *)(((ctx_t *)(ctx))->b))[14];
+    ((uint64_t *)(aux))[31] = ((uint64_t *)(((ctx_t *)(ctx))->b))[15];
+
+    devB2B_MIX(aux, aux + 16);
+
     ((ctx_t *)(ctx))->h[0] ^= ((uint64_t *)(aux))[0] ^ ((uint64_t *)(aux))[ 8];
     ((ctx_t *)(ctx))->h[1] ^= ((uint64_t *)(aux))[1] ^ ((uint64_t *)(aux))[ 9];
     ((ctx_t *)(ctx))->h[2] ^= ((uint64_t *)(aux))[2] ^ ((uint64_t *)(aux))[10];
@@ -282,8 +284,31 @@ void devDEVICE_B2B_H_LAST(ctx_t *ctx, uint64_t* aux)                            
     ((ctx_t *)(ctx))->h[6] ^= ((uint64_t *)(aux))[6] ^ ((uint64_t *)(aux))[14];
     ((ctx_t *)(ctx))->h[7] ^= ((uint64_t *)(aux))[7] ^ ((uint64_t *)(aux))[15];
 
-	return;                                                
-}               
+	return;
+}
+
+
+const __constant__ uint64_t ivals[8] = {
+    0x6A09E667F2BDC928,
+    0xBB67AE8584CAA73B,
+    0x3C6EF372FE94F82B,
+    0xA54FF53A5F1D36F1,
+    0x510E527FADE682D1,
+    0x9B05688C2B3E6C1F,
+    0x1F83D9ABFB41BD6B,
+    0x5BE0CD19137E2179
+};
+
+void cpyCtxSymbol(ctx_t *ctx)
+{
+    CUDA_CALL(cudaMemcpyToSymbol(ctt, ctx, sizeof(ctx_t)));
+
+}
+
+void cpyBSymbol(uint8_t *bound)
+{
+    CUDA_CALL(cudaMemcpyToSymbol(bound_, bound, NUM_SIZE_32 * sizeof(uint32_t)));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Unfinalized hash of message
@@ -315,18 +340,237 @@ void InitMining(
 
         ctx->b[ctx->c++] = ((const uint8_t *)mes)[j];
     }
-
+    ((uint32_t*)(ctx->t))[0] = 40;
+    ctx->c = 40;
     return;
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
-//  Block mining                                                               
+//  Block mining
 ////////////////////////////////////////////////////////////////////////////////
 __global__ __launch_bounds__(64, 64)
-__global__ void BlockMining(
-    // boundary for puzzle
-    const uint32_t * bound,
-    // data:  mes  ctx
+__global__ void BlockMiningStep1(
+
+
+    // data:  mes  
+    const uint32_t * data,
+
+    // nonce base
+    const uint64_t base,
+
+    // block height
+    const uint32_t height,
+
+    // precalculated hashes
+    const uint32_t * hashes,
+
+    uint32_t* BHashes
+    )
+
+{
+
+    uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t r[9] = {0};
+
+    uint64_t aux[32];
+
+    ctx_t * ctx = ctt;
+
+    uint32_t ind[32];
+
+
+    uint32_t j;
+    uint32_t non[NONCE_SIZE_32];
+    uint64_t tmp;
+    uint64_t hsh;
+    uint32_t tt1;
+    uint32_t tt2;
+    uint64_t h2;
+    uint32_t h3 ;
+    uint8_t b[71+1];
+    uint8_t c = 0;
+
+    for(int ii = 0; ii < 4; ii++)
+    {
+        tid = (NONCES_PER_ITER/4)*ii + threadIdx.x + blockDim.x * blockIdx.x;
+        if(tid < NONCES_PER_ITER)
+        {
+        asm volatile (
+            "add.cc.u32 %0, %1, %2;":
+            "=r"(non[0]): "r"(((uint32_t *)&base)[0]), "r"(tid)
+        );
+
+        asm volatile (
+            "addc.u32 %0, %1, 0;": "=r"(non[1]): "r"(((uint32_t *)&base)[1])
+        );
+
+
+        ((uint32_t*)(&tmp))[0] = __byte_perm( non[1], 0 , 0x0123);
+        ((uint32_t*)(&tmp))[1] = __byte_perm( non[0], 0 , 0x0123);
+
+        B2B_IV(aux);
+        B2B_IV(aux + 8);
+        aux[0] = ivals[0];
+        ((uint64_t *)(aux))[12] ^= 40;
+        ((uint64_t *)(aux))[13] ^= 0;
+
+        ((uint64_t *)(aux))[14] = ~((uint64_t *)(aux))[14];
+
+        ((uint64_t *)(aux))[16] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 0];
+        ((uint64_t *)(aux))[17] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 1];
+        ((uint64_t *)(aux))[18] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 2];
+        ((uint64_t *)(aux))[19] = ((uint64_t *)(((ctx_t *)(ctx))->b))[ 3];
+        ((uint64_t *)(aux))[20] = tmp;
+        ((uint64_t *)(aux))[21] = 0;
+        ((uint64_t *)(aux))[22] = 0 ;
+        ((uint64_t *)(aux))[23] = 0  ;
+        ((uint64_t *)(aux))[24] = 0  ;
+        ((uint64_t *)(aux))[25] = 0  ;
+        ((uint64_t *)(aux))[26] = 0  ;
+        ((uint64_t *)(aux))[27] = 0  ;
+        ((uint64_t *)(aux))[28] = 0  ;
+        ((uint64_t *)(aux))[29] = 0  ;
+        ((uint64_t *)(aux))[30] = 0  ;
+        ((uint64_t *)(aux))[31] = 0  ;
+
+
+
+        devB2B_MIX(aux, aux + 16);
+
+
+        #pragma unroll
+        for(j = 0; j < NUM_SIZE_32; j+=2)
+        {
+            hsh = ivals[j >> 1];
+            hsh ^= ((uint64_t *)(aux))[j >> 1] ^ ((uint64_t *)(aux))[ 8 + (j >> 1)];
+            tt1 = __byte_perm( ((uint32_t*)(&hsh))[0], 0 , 0x0123);
+            tt2 = __byte_perm( ((uint32_t*)(&hsh))[1], 0 , 0x0123);
+
+            r[j] = cuda_swab32(tt1);
+            r[j+1] = cuda_swab32(tt2);
+
+        }
+
+        //----------------------------------------------------------------------------------------
+        ((uint8_t*)&h2)[0] = ((uint8_t*)r)[31];
+        ((uint8_t*)&h2)[1] = ((uint8_t*)r)[30];
+        ((uint8_t*)&h2)[2] = ((uint8_t*)r)[29];
+        ((uint8_t*)&h2)[3] = ((uint8_t*)r)[28];
+        ((uint8_t*)&h2)[4] = ((uint8_t*)r)[27];
+        ((uint8_t*)&h2)[5] = ((uint8_t*)r)[26];
+        ((uint8_t*)&h2)[6] = ((uint8_t*)r)[25];
+        ((uint8_t*)&h2)[7] = ((uint8_t*)r)[24];
+
+        h3 = h2 % N_LEN;
+
+		#pragma unroll 8
+		for (int i = 0; i < 8; ++i)
+		{
+			r[7-i] = cuda_swab32(hashes[(h3 << 3) + i]);
+		}
+
+
+
+         //------------------------------------------------------
+             asm volatile (
+                 "add.cc.u32 %0, %1, %2;":
+                 "=r"(non[0]): "r"(((uint32_t *)&base)[0]), "r"(tid)
+             );
+
+             asm volatile (
+                 "addc.u32 %0, %1, 0;": "=r"(non[1]): "r"(((uint32_t *)&base)[1])
+             );
+
+
+             //-----------------------------
+             //----------------------------
+             c = 0;
+             #pragma unroll 32
+             for (j = 0; j < NUM_SIZE_8 - 1; ++j)
+             {
+                 b[c++] = ((const uint8_t *)r)[j + 1];
+             }
+
+             //====================================================================//
+             //  Hash message
+             //====================================================================//
+             #pragma unroll 32
+             for (j = 0; j < NUM_SIZE_8; ++j)
+             {
+                 b[c++] = (( const uint8_t *)data)[j];
+             }
+
+             //================================================================//
+             //  Hash nonce
+             //================================================================//
+             //uint64_t tmp;
+             ((uint32_t*)(&tmp))[0] = __byte_perm( non[1], 0 , 0x0123);
+             ((uint32_t*)(&tmp))[1] = __byte_perm( non[0], 0 , 0x0123);
+
+             b[c++] = ((uint8_t *)non)[7];
+             b[c++] = ((uint8_t *)non)[6];
+             b[c++] = ((uint8_t *)non)[5];
+             b[c++] = ((uint8_t *)non)[4];
+             b[c++] = ((uint8_t *)non)[3];
+             b[c++] = ((uint8_t *)non)[2];
+             b[c++] = ((uint8_t *)non)[1];
+             b[c++] = ((uint8_t *)non)[0];
+
+             //----------------------------
+             //-----------------------------
+
+             B2B_IV(aux);
+             B2B_IV(aux + 8);
+             aux[0] = ivals[0];
+             ((uint64_t *)(aux))[12] ^= 31+32+8;
+             ((uint64_t *)(aux))[13] ^= 0;
+
+             ((uint64_t *)(aux))[14] = ~((uint64_t *)(aux))[14];
+
+             ((uint64_t *)(aux))[16] = ((uint64_t *)b)[ 0];
+             ((uint64_t *)(aux))[17] = ((uint64_t *)b)[ 1];
+             ((uint64_t *)(aux))[18] = ((uint64_t *)b)[ 2];
+             ((uint64_t *)(aux))[19] = ((uint64_t *)b)[ 3];
+             ((uint64_t *)(aux))[20] = ((uint64_t *)b)[ 4];
+             ((uint64_t *)(aux))[21] = ((uint64_t *)b)[ 5];
+             ((uint64_t *)(aux))[22] = ((uint64_t *)b)[ 6];
+             ((uint64_t *)(aux))[23] = ((uint64_t *)b)[ 7];
+             ((uint64_t *)(aux))[24] = ((uint64_t *)b)[ 8];
+             ((uint64_t *)(aux))[25] = 0  ;
+             ((uint64_t *)(aux))[26] = 0  ;
+             ((uint64_t *)(aux))[27] = 0  ;
+             ((uint64_t *)(aux))[28] = 0  ;
+             ((uint64_t *)(aux))[29] = 0  ;
+             ((uint64_t *)(aux))[30] = 0  ;
+             ((uint64_t *)(aux))[31] = 0  ;
+
+             devB2B_MIX(aux, aux + 16);
+
+             //uint64_t hsh;
+             #pragma unroll
+             for(j = 0; j < NUM_SIZE_32; j+=2)
+             {
+                 hsh = ivals[j >> 1];
+                 hsh ^= ((uint64_t *)(aux))[j >> 1] ^ ((uint64_t *)(aux))[ 8 + (j >> 1)];
+                 BHashes[THREADS_PER_ITER*j + tid] = __byte_perm( ((uint32_t*)(&hsh))[0], 0 , 0x0123);
+                 BHashes[THREADS_PER_ITER*(j+1) + tid] = __byte_perm( ((uint32_t*)(&hsh))[1], 0 , 0x0123);
+             }
+
+        }
+        }
+
+
+
+
+    return;
+
+}
+
+
+__global__ __launch_bounds__(64, 64)
+__global__ void BlockMiningStep2(
+    // data:  mes  
     const uint32_t * data,
     // nonce base
     const uint64_t base,
@@ -335,8 +579,9 @@ __global__ void BlockMining(
     // precalculated hashes
     const uint32_t * hashes,
     // indices of valid solutions
-    uint32_t * valid , 
-    uint32_t * count
+    uint32_t * valid ,
+    uint32_t * count,
+    uint32_t*  BHashes
 )
 {
     uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -359,175 +604,42 @@ __global__ void BlockMining(
 	__shared__ uint32_t shared_index[64];
 	__shared__ uint32_t shared_data[512];
 
+    uint8_t j = 0;
+
     if (tid < NONCES_PER_ITER)
     {
-		uint32_t j;
-        uint32_t non[2];
 
-        asm volatile (
-            "add.cc.u32 %0, %1, %2;":
-            "=r"(non[0]): "r"(((uint32_t *)&base)[0]), "r"(tid)
-        );
-
-        asm volatile (
-            "addc.u32 %0, %1, 0;": "=r"(non[1]): "r"(((uint32_t *)&base)[1])
-        );
-
-        //================================================================//
-        //  Hash nonce
-        //================================================================//
-
-        for (int am = 0; am < BUF_SIZE_8; am++)
+        #pragma unroll
+        for(int k=0;k<8;k++)
         {
-            ctx->b[am] = 0;
-        }
-        B2B_IV(ctx->h);
-
-
-
-        ctx->h[0] ^= 0x01010000 ^ NUM_SIZE_8;
-        //memset(ctx->t, 0, 16);
-        ctx->t[0] = 0;
-        ctx->t[1] = 0;
-        ctx->c = 0;
-
-		#pragma unroll 32
-        for (j = 0; ctx->c < BUF_SIZE_8 && j < NUM_SIZE_8; ++j)
-        {
-            ctx->b[ctx->c++] = (( const uint8_t *)data)[j];
+            r[k] = (BHashes[k*THREADS_PER_ITER + tid]);
         }
 
-        ctx->b[ctx->c++] = ((uint8_t *)non)[7];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[6];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[5];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[4];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[3];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[2];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[1];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[0];
-
-        //================================================================//
-        //  Finalize hashes
-        //================================================================//
-
-        devDEVICE_B2B_H_LAST(ctx, aux);
-        //---------------------------------------------------------------------------------------------------------------------//
-
-		//Begin lookup * * * * * * * * * * * * * * * * * * * * * 
-		#pragma unroll 32
-        for (j = 0; j < NUM_SIZE_8; ++j)
-        {
-            ((uint8_t *)r)[j] = (ctx->h[j >> 3] >> ((j & 7) << 3)) & 0xFF;
-        }
-        uint64_t h2;
-        ((uint8_t*)&h2)[0] = ((uint8_t*)r)[31];
-        ((uint8_t*)&h2)[1] = ((uint8_t*)r)[30];
-        ((uint8_t*)&h2)[2] = ((uint8_t*)r)[29];
-        ((uint8_t*)&h2)[3] = ((uint8_t*)r)[28];
-        ((uint8_t*)&h2)[4] = ((uint8_t*)r)[27];
-        ((uint8_t*)&h2)[5] = ((uint8_t*)r)[26];
-        ((uint8_t*)&h2)[6] = ((uint8_t*)r)[25];
-        ((uint8_t*)&h2)[7] = ((uint8_t*)r)[24];
-
-        uint32_t h3 = h2 % N_LEN;
-
-		#pragma unroll 8
-		for (int i = 0; i < 8; ++i)
-		{
-			r[7-i] = cuda_swab32(hashes[(h3 << 3) + i]);
-		}
-
-		/*if (tid == 0) {
-			printf("\n");
-			for (int j = 0; j < 8; j++) {
-				printf("%08x", r[j]);
-			}
-			printf("\n");
-		}*/
-
-        //====================================================================//
-        //  Initialize context
-        //====================================================================//
-		#pragma unroll 8
-        for (int am = 0; am < BUF_SIZE_8; am++)
-        {
-            ctx->b[am] = 0;
-        }
-        B2B_IV(ctx->h);
-
-        ctx->h[0] ^= 0x01010000 ^ NUM_SIZE_8;
-        //memset(ctx->t, 0, 16);
-        ctx->t[0] = 0;
-        ctx->t[1] = 0;
-        ctx->c = 0;
-
-        //====================================================================//
-        //  Hash 
-        //====================================================================//
-		#pragma unroll 32
-        for (j = 0; ctx->c < BUF_SIZE_8 && j < NUM_SIZE_8 - 1; ++j)
-        {
-            ctx->b[ctx->c++] = ((const uint8_t *)r)[j + 1];
-        }
-
-        //====================================================================//
-        //  Hash message
-        //====================================================================//
-		#pragma unroll 32
-        for (j = 0; ctx->c < BUF_SIZE_8 && j < NUM_SIZE_8; ++j)
-        {
-            ctx->b[ctx->c++] = (( const uint8_t *)data)[j];
-        }
-
-        //================================================================//
-        //  Hash nonce
-        //================================================================//
-
-        ctx->b[ctx->c++] = ((uint8_t *)non)[7];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[6];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[5];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[4];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[3];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[2];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[1];
-		ctx->b[ctx->c++] = ((uint8_t *)non)[0];
-
-        //---------------------------------------------------------------------------------------------------------------------//
-        //================================================================//
-        //  Finalize hashes
-        //================================================================//
-        devDEVICE_B2B_H_LAST(ctx, aux);
-
-		#pragma unroll 32
-        for (j = 0; j < 32; ++j)
-        {
-            ((uint8_t *)r)[(j & 0xFFFFFFFC) + (3 - (j & 3))]
-                = (ctx->h[j >> 3] >> ((j & 7) << 3)) & 0xFF;
-        }
 
         //================================================================//
         //  Generate indices
         //================================================================//
 
-        ((uint8_t *)r)[33] = ((uint8_t *)r)[1];
+
+        ((uint8_t *)r)[32] = ((uint8_t *)r)[0];
+		((uint8_t *)r)[33] = ((uint8_t *)r)[1];
 		((uint8_t *)r)[34] = ((uint8_t *)r)[2];
 		((uint8_t *)r)[35] = ((uint8_t *)r)[3];
-      
-		#pragma unroll
-        for (int k = 0; k < K_LEN; k += 4) 
-        { 
+
+        #pragma unroll
+        for (int k = 0; k < K_LEN; k += 4)
+        {
             ind[k] = r[k >> 2] & N_MASK;
             ind[k + 1] = ((r[k >> 2] << 8) | (r[(k >> 2) + 1] >> 24)) & N_MASK;
-			ind[k + 2] = ((r[k >> 2] << 16) | (r[(k >> 2) + 1] >> 16)) & N_MASK; 
-			ind[k + 3] = ((r[k >> 2] << 24) | (r[(k >> 2) + 1] >> 8)) & N_MASK;   
+			ind[k + 2] = ((r[k >> 2] << 16) | (r[(k >> 2) + 1] >> 16)) & N_MASK;
+			ind[k + 3] = ((r[k >> 2] << 24) | (r[(k >> 2) + 1] >> 8)) & N_MASK;
         }
 
-		//---------------------------------------------------------------------------------------------------------------------//
 
         //================================================================//
         //  Calculate result
         //================================================================//
-	
+
 		shared_index[thrdblck_id] = ind[0];
 		__syncthreads();
 
@@ -622,7 +734,7 @@ __global__ void BlockMining(
 			asm volatile ("addc.u32 %0, %0, 0;": "+r"(r[8]));
         }
 
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////        
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         //--------------------hash(f)--------------------
         //====================================================================//
@@ -644,6 +756,7 @@ __global__ void BlockMining(
         ctx->c = 0;
 
 
+
         //--------------hash--------------------
         for (j = 0; ctx->c < BUF_SIZE_8 && j < NUM_SIZE_8; ++j)
         {
@@ -663,35 +776,33 @@ __global__ void BlockMining(
             ((uint8_t*)r)[NUM_SIZE_8 - j - 1] = (ctx->h[j >> 3] >> ((j & 7) << 3)) & 0xFF;
         }
 
-
-
         //================================================================//
         //  Dump result to global memory -- LITTLE ENDIAN
         //================================================================//
-        j = ((uint64_t *)r)[3] < ((uint64_t *)bound)[3]
-            || ((uint64_t *)r)[3] == ((uint64_t *)bound)[3] && (
-                ((uint64_t *)r)[2] < ((uint64_t *)bound)[2]
-                || ((uint64_t *)r)[2] == ((uint64_t *)bound)[2] && (
-                    ((uint64_t *)r)[1] < ((uint64_t *)bound)[1]
-                    || ((uint64_t *)r)[1] == ((uint64_t *)bound)[1]
-                    && ((uint64_t *)r)[0] < ((uint64_t *)bound)[0]
+        j = ((uint64_t *)r)[3] < ((uint64_t *)bound_)[3]
+            || ((uint64_t *)r)[3] == ((uint64_t *)bound_)[3] && (
+                ((uint64_t *)r)[2] < ((uint64_t *)bound_)[2]
+                || ((uint64_t *)r)[2] == ((uint64_t *)bound_)[2] && (
+                    ((uint64_t *)r)[1] < ((uint64_t *)bound_)[1]
+                    || ((uint64_t *)r)[1] == ((uint64_t *)bound_)[1]
+                    && ((uint64_t *)r)[0] < ((uint64_t *)bound_)[0]
                 )
             );
 
-        
+
             if(j )
             {
-    
-                
+
+
                 uint32_t id = atomicInc(count, MAX_SOLS);
-                valid[id] = tid+1; 
+                valid[id] = tid+1;
            }
-        }
+
+
+    }
 
     return;
 
+
 }
-
-// mining.cu
-
 

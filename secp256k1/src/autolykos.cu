@@ -79,7 +79,6 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
 void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vector<double>* hashrates, std::vector<int>* tstamps, BlockQueue<MinerShare>* shQueue)
 {
 	AutolykosAlg solVerifier;
-
     CUDA_CALL(cudaSetDevice(deviceId));
     cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
     char threadName[20];
@@ -104,8 +103,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     uint8_t nonce[NONCE_SIZE_8];
 
     char to[MAX_URL_SIZE];
-    int keepPrehash = 0;
-
+ 
     // thread info variables
     uint_t blockId = 0;
     milliseconds start; 
@@ -119,10 +117,9 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     memcpy(bound_h, info->bound, NUM_SIZE_8);
     memcpy(to, info->to, MAX_URL_SIZE * sizeof(char));
     // blockId = info->blockId.load();
-    keepPrehash = info->keepPrehash;
+    //keepPrehash = info->keepPrehash;
     
     info->info_mutex.unlock();
-    
     //========================================================================//
     //  Check GPU memory
     //========================================================================//
@@ -139,39 +136,39 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
         return;
     }
 
-    keepPrehash = 0;
-
+   
     //========================================================================//
     //  Device memory allocation
     //========================================================================//
-    LOG(INFO) << "GPU " << deviceId << " allocating memory";
+   // LOG(INFO) << "GPU " << deviceId << " allocating memory";
 
     // height for puzzle
     uint32_t * height_d;
     CUDA_CALL(cudaMalloc(&height_d, HEIGHT_SIZE));
 
-    // boundary for puzzle
-    uint32_t * bound_d;
-    // (2 * PK_SIZE_8 + 2 + 4 * NUM_SIZE_8 + 212 + 4) bytes // ~0 MiB
-    CUDA_CALL(cudaMalloc(&bound_d, NUM_SIZE_8 + DATA_SIZE_8));
-    // data: pk || mes || w || padding || x || sk || ctx
-    uint32_t * data_d = bound_d + NUM_SIZE_32;
+    uint32_t * data_d;
+    CUDA_CALL(cudaMalloc(&data_d, NUM_SIZE_8 + sizeof(ctx_t) ) );
+
+    
+    uint32_t* BHashes;
+    CUDA_CALL(cudaMalloc(&BHashes, (NUM_SIZE_8)*THREADS_PER_ITER) );
 
     // precalculated hashes
     // N_LEN * NUM_SIZE_8 bytes // 2 GiB
-    uint32_t * hashes_d;
-    CUDA_CALL(cudaMalloc(&hashes_d, (uint32_t)N_LEN * NUM_SIZE_8));
+    uint32_t * hashes_d; 
+    CUDA_CALL(cudaMalloc(&hashes_d, (uint32_t)N_LEN * NUM_SIZE_8) );
+    //LOG(INFO) << "g" << LocalgpuId << " hashes_d: " << hashes_d <<  " ghashes_d[gpuId]: " << ghashes_d[gpuId];
 
     // place to handle result of the puzzle
     uint32_t * indices_d;
-    CUDA_CALL(cudaMalloc(&indices_d, MAX_SOLS*sizeof(uint32_t)));
+    CUDA_CALL(cudaMalloc(&indices_d, MAX_SOLS*sizeof(uint32_t)) );
 
     // place to handle nonce if solution is found
     uint32_t indices_h[MAX_SOLS];
     
     uint32_t * count_d;
 
-    CUDA_CALL(cudaMalloc(&count_d,sizeof(uint32_t)));
+    CUDA_CALL(cudaMalloc(&count_d,sizeof(uint32_t)) );
 
     CUDA_CALL(cudaMemset(count_d,0,sizeof(uint32_t)));
 
@@ -179,20 +176,6 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     CUDA_CALL(cudaMemset(
         indices_d, 0, sizeof(uint32_t)*MAX_SOLS
     ));
-
-    uint32_t * ctxuh_d;
-    CUDA_CALL(cudaMalloc(&ctxuh_d, (NONCES_PER_ITER/8) * sizeof(ctx_t)  ));
-
-    // unfinalized hash contexts
-    // if keepPrehash == true // N_LEN * 80 bytes // 5 GiB
-    uctx_t * uctxs_d = NULL;
-    if(info->AlgVer == 2)
-        keepPrehash = false;
-    if (keepPrehash)
-    {
-        CUDA_CALL(cudaMalloc(&uctxs_d, (uint32_t)N_LEN * sizeof(uctx_t)));
-    }
-
 
     //========================================================================//
     //  Autolykos puzzle cycle
@@ -213,7 +196,6 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
     do
     {
         ++cntCycles;
-
         if (!(cntCycles % NCycles))
         {
             milliseconds timediff
@@ -261,54 +243,18 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 			base = *((uint64_t *)info->extraNonceStart) + deviceId * nonceChunk;
             EndNonce = base + nonceChunk;
             
-
+            //LOG(INFO) << "gpu: " << deviceId << " base: " << base << " end: " << EndNonce;
             
             memcpy(&height,info->Hblock, HEIGHT_SIZE);
 
             info->info_mutex.unlock();
 
-            LOG(INFO) << "GPU " << deviceId << " read new block data";
+            //LOG(INFO) << "GPU " << deviceId << " read new block data";
             blockId = controlId;
             
 
             VLOG(1) << "Generated new keypair,"
                 << " copying new data in device memory now";
-
-            // copy boundary
-            CUDA_CALL(cudaMemcpy(
-                bound_d, bound_h, NUM_SIZE_8, cudaMemcpyHostToDevice
-            ));
-
-            // copy message
-            CUDA_CALL(cudaMemcpy(
-                ((uint8_t *)data_d + PK_SIZE_8), mes_h, NUM_SIZE_8,
-                cudaMemcpyHostToDevice
-            ));
-
-
-
-            VLOG(1) << "Starting prehashing with new block data";
-            Prehash(keepPrehash, data_d, uctxs_d, hashes_d,height,info->AlgVer);
-            
-            // calculate unfinalized hash of message
-            VLOG(1) << "Starting InitMining";
-            InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
-            
-            CUDA_CALL(cudaDeviceSynchronize());
-			LOG(INFO) << "GPU " << deviceId << " started";
-            
-            // copy context
-            CUDA_CALL(cudaMemcpy(
-                data_d + COUPLED_PK_SIZE_32 + 3 * NUM_SIZE_32, &ctx_h,
-                sizeof(ctx_t), cudaMemcpyHostToDevice
-            ));
-
-            state = STATE_CONTINUE;
-        }
-
-        //LOG(INFO) << "Starting main BlockMining procedure";
-
-        // calculate solution candidates
 
             // copy message
             CUDA_CALL(cudaMemcpy(
@@ -316,43 +262,41 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
                 cudaMemcpyHostToDevice
             ));
 
+
+
+            VLOG(1) << "Starting prehashing with new block data";
+
+            Prehash(hashes_d,height);
+            // calculate unfinalized hash of message
+            VLOG(1) << "Starting InitMining";
+            InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
             
-            CUDA_CALL(cudaMemcpy(
-                ((uint8_t *)data_d)+ NUM_SIZE_8, &ctx_h, sizeof(ctx_t),
-                cudaMemcpyHostToDevice
-            ));
 
-                        
+			LOG(INFO) << "GPU " << deviceId << " started";
+            
+            cpyCtxSymbol((ctx_t*)(&ctx_h));
+            cpyBSymbol(bound_h);
+            
+            CUDA_CALL(cudaDeviceSynchronize());
+            state = STATE_CONTINUE;
+        }
 
+        //LOG(INFO) << "Starting main BlockMining procedure";
 
-	int threads = THREADS_PER_ITER;
-	uint64_t check = base + threads;
-	if (check > EndNonce)
-	{
-		threads = EndNonce - base;
-	}
-	if (threads <= 0)
-	{
-        LOG(INFO) << " negative threads, ( base: " << base << " , endNonce: " << EndNonce << " ) ";
-    }
-    else
-    {
-            BlockMining<<<1 + (threads - 1) / BLOCK_DIM, BLOCK_DIM>>>(
-                bound_d, data_d, base,height, hashes_d, indices_d , count_d
-            );
-    }
+        // calculate solution candidates
+        VLOG(1) << "Starting main BlockMining procedure";
+        BlockMiningStep1<<<1 + (THREADS_PER_ITER - 1) / (BLOCK_DIM*4), BLOCK_DIM>>>(data_d, base,height, hashes_d, BHashes);
+        BlockMiningStep2<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(data_d, base,height, hashes_d, indices_d , count_d,BHashes);
         VLOG(1) << "Trying to find solution";
 
         // restart iteration if new block was found
-        if (blockId != info->blockId.load()) { continue; }
-
+        if (blockId != info->blockId.load()) { continue;}
 
 		CUDA_CALL(cudaMemcpy(
             indices_h, indices_d, MAX_SOLS*sizeof(uint32_t),
             cudaMemcpyDeviceToHost
         ));
 		
-		//exit(0);
 
         // solution found
         if (indices_h[0])
@@ -360,7 +304,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             
             
 			int i = 0;
-			while (indices_h[i] && (i < 16/*MAX_SOLS*/) && (blockId == info->blockId.load()) )
+			while (indices_h[i] && (i < 16/*MAX_SOLS*/)  )
 			{
 				if(!info->stratumMode && i != 0)
 				{
@@ -389,7 +333,8 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 					}
 					else
 					{
-						LOG(INFO) << " problem in verify solution, nonce: " << *((uint64_t *)nonce);
+                        LOG(INFO) << " problem in verify solution, nonce: " << *((uint64_t *)nonce);
+                        //exit(0);
 					}
 
                 }
@@ -446,7 +391,6 @@ int main(int argc, char ** argv)
         LOG(ERROR) << "Error checking GPU";
         return EXIT_FAILURE;
     }
-
     LOG(INFO) << "Using " << deviceCount << " GPU devices";
 
     //========================================================================//
@@ -499,6 +443,7 @@ int main(int argc, char ** argv)
     std::vector<double> hashrates(deviceCount);
     std::vector<int> lastTimestamps(deviceCount);
     std::vector<int> timestamps(deviceCount);
+
     
     // PCI bus and device IDs
     std::vector<std::pair<int,int>> devinfos(deviceCount);
@@ -514,7 +459,6 @@ int main(int argc, char ** argv)
         lastTimestamps[i] = 1;
         timestamps[i] = 0;
     }
-
 
     // get first block 
     status = EXIT_FAILURE;
@@ -534,7 +478,7 @@ int main(int argc, char ** argv)
     //  Main thread get-block cycle
     //========================================================================//
     uint_t curlcnt = 0;
-    const uint_t curltimes = 500;
+    const uint_t curltimes = 1000;
 
     milliseconds ms = milliseconds::zero(); 
     
@@ -542,12 +486,12 @@ int main(int argc, char ** argv)
 
     // bomb node with HTTP with 10ms intervals, if new block came 
     // signal miners with blockId
-    while (1)
+while (1)
     {
         milliseconds start = duration_cast<milliseconds>(
             system_clock::now().time_since_epoch()
         );
-        
+            
         // get latest block
         status = GetLatestBlock(from, &request, &info, 0);
         
@@ -576,13 +520,12 @@ int main(int argc, char ** argv)
                     if(lastTimestamps[i] == timestamps[i])
                     {
                         hashrates[i] = 0;
-
-		    }
+	            }
                     lastTimestamps[i] = timestamps[i];
                 }
                 hrBuffer << "GPU" << i << " " << hashrates[i] << " MH/s ";
                 totalHr += hashrates[i];
-                
+
             }
             hrBuffer << "Total " << totalHr << " MH/s ";
             LOG(INFO) << hrBuffer.str();
@@ -602,5 +545,6 @@ int main(int argc, char ** argv)
 }
 
 // autolykos.cu
+
 
 
