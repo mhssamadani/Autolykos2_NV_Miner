@@ -35,9 +35,6 @@ __global__ void BlockMiningStep1(
     // nonce base
     const uint64_t base,
 
-    // block height
-    const uint32_t height,
-
     // precalculated hashes
     const uint32_t * hashes,
 

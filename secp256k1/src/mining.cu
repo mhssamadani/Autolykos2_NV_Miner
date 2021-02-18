@@ -359,9 +359,6 @@ __global__ void BlockMiningStep1(
     // nonce base
     const uint64_t base,
 
-    // block height
-    const uint32_t height,
-
     // precalculated hashes
     const uint32_t * hashes,
 
@@ -444,12 +441,9 @@ __global__ void BlockMiningStep1(
         {
             hsh = ivals[j >> 1];
             hsh ^= ((uint64_t *)(aux))[j >> 1] ^ ((uint64_t *)(aux))[ 8 + (j >> 1)];
-            tt1 = __byte_perm( ((uint32_t*)(&hsh))[0], 0 , 0x0123);
-            tt2 = __byte_perm( ((uint32_t*)(&hsh))[1], 0 , 0x0123);
 
-            r[j] = cuda_swab32(tt1);
-            r[j+1] = cuda_swab32(tt2);
-
+            r[j] =  ((uint32_t*)(&hsh))[0];
+            r[j+1] = ((uint32_t*)(&hsh))[1];
         }
 
         //----------------------------------------------------------------------------------------
@@ -473,17 +467,7 @@ __global__ void BlockMiningStep1(
 
 
          //------------------------------------------------------
-             asm volatile (
-                 "add.cc.u32 %0, %1, %2;":
-                 "=r"(non[0]): "r"(((uint32_t *)&base)[0]), "r"(tid)
-             );
 
-             asm volatile (
-                 "addc.u32 %0, %1, 0;": "=r"(non[1]): "r"(((uint32_t *)&base)[1])
-             );
-
-
-             //-----------------------------
              //----------------------------
              c = 0;
              #pragma unroll 32
@@ -504,10 +488,6 @@ __global__ void BlockMiningStep1(
              //================================================================//
              //  Hash nonce
              //================================================================//
-             //uint64_t tmp;
-             ((uint32_t*)(&tmp))[0] = __byte_perm( non[1], 0 , 0x0123);
-             ((uint32_t*)(&tmp))[1] = __byte_perm( non[0], 0 , 0x0123);
-
              b[c++] = ((uint8_t *)non)[7];
              b[c++] = ((uint8_t *)non)[6];
              b[c++] = ((uint8_t *)non)[5];

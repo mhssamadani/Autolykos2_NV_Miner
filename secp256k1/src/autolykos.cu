@@ -285,7 +285,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
         // calculate solution candidates
         VLOG(1) << "Starting main BlockMining procedure";
-        BlockMiningStep1<<<1 + (THREADS_PER_ITER - 1) / (BLOCK_DIM*4), BLOCK_DIM>>>(data_d, base,height, hashes_d, BHashes);
+        BlockMiningStep1<<<1 + (THREADS_PER_ITER - 1) / (BLOCK_DIM*4), BLOCK_DIM>>>(data_d, base, hashes_d, BHashes);
         BlockMiningStep2<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(data_d, base,height, hashes_d, indices_d , count_d,BHashes);
         VLOG(1) << "Trying to find solution";
 
