@@ -95,7 +95,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
     // hash context
     // (212 + 4) bytes
-    ctx_t ctx_h;
+	//ctx_t ctx_h;
 
     // autolykos variables
     uint8_t bound_h[NUM_SIZE_8];
@@ -269,12 +269,12 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             Prehash(hashes_d,height);
             // calculate unfinalized hash of message
             VLOG(1) << "Starting InitMining";
-            InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
+			//InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
             
 
 			LOG(INFO) << "GPU " << deviceId << " started";
             
-            cpyCtxSymbol((ctx_t*)(&ctx_h));
+			//cpyCtxSymbol((ctx_t*)(&ctx_h));
             cpyBSymbol(bound_h);
             
             CUDA_CALL(cudaDeviceSynchronize());
