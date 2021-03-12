@@ -32,7 +32,8 @@ int ParseRequest(
     json_t * oldreq ,
     json_t * newreq, 
     info_t *info, 
-    int checkPubKey
+    int checkPubKey,
+	long http_code
 );
 
 int ParseRequestWithPBound(

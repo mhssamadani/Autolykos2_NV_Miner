@@ -257,6 +257,7 @@ struct info_t
     int keepPrehash;
     char to[MAX_URL_SIZE];
     char endJob[MAX_URL_SIZE];
+    bool doJob;
     //pool additions
     char pool[MAX_URL_SIZE];
     uint8_t Hblock[HEIGHT_SIZE];
