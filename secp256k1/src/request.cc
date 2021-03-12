@@ -84,7 +84,7 @@ void CurlLogError(CURLcode curl_status)
 // Parse JSON request and substitute data if needed
 // moved to separate function for tests
 ///////////////////////////////////////////////////////////////////////////////
-int ParseRequest(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey)
+int ParseRequest(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey, long http_code)
 {
 	jsmn_parser parser;
 	int mesChanged = 0;
@@ -152,11 +152,20 @@ int ParseRequest(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey
 	(HPos == -1) ? info->AlgVer = 1 : info->AlgVer = 2;
 	if ( BoundPos < 0 || MesPos < 0 || HPos < 0 )
 	{
-		LOG(ERROR) << "Some of expected fields not present in /block/candidate";
 		LOG(ERROR) << "Block data: " << newreq->ptr;
+		if (BoundPos < 0 && MesPos < 0 && HPos < 0 && http_code == 200)
+		{
+			LOG(ERROR) << "(http_code 200), problem in  proxy connection";
+			info->doJob = false;
+
+		}
+		else
+		{
+			LOG(ERROR) << "Some of expected fields not present in /block/candidate";
+		}
 		return EXIT_FAILURE;
 	}
-
+	info->doJob = true;
 
 	if (checkPubKey)
 	{
@@ -410,6 +419,8 @@ int GetLatestBlock(
     CurlLogError(curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L));
     CurlLogError(curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L));
     curlError = curl_easy_perform(curl);
+   	long http_code = 0;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     CurlLogError(curlError);
     curl_easy_cleanup(curl);
 
@@ -419,7 +430,7 @@ int GetLatestBlock(
     if (!curlError)
     {
         int oldId = info->blockId.load();
-        if(ParseRequest(oldreq, &newreq, info, checkPubKey) != EXIT_SUCCESS)
+        if(ParseRequest(oldreq, &newreq, info, checkPubKey,http_code) != EXIT_SUCCESS)
         {
             return EXIT_FAILURE;
         }

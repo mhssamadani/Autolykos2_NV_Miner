@@ -224,6 +224,12 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             state = STATE_CONTINUE;
         }
 
+        // if proxy is disconnected  wait for connection 
+		while (!info->doJob)
+		{
+			//LOG(INFO) << "GPU " << deviceId << " problem in proxy ";
+		}
+
         uint_t controlId = info->blockId.load();
         
         if (blockId != controlId)
