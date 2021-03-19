@@ -95,7 +95,7 @@ int ParseRequest(json_t * oldreq, json_t * newreq, info_t *info, int checkPubKey
 	ToUppercase(newreq->ptr);
 	jsmn_init(&parser);
 
-
+	
 	int numtoks = jsmn_parse(
 		&parser, newreq->ptr, newreq->len, newreq->toks, REQ_LEN
 		);
@@ -448,7 +448,9 @@ int GetLatestBlock(
 
         return EXIT_SUCCESS;
     }
-    
+	
+    info->doJob = false;
+
     return EXIT_FAILURE;
 }
 
