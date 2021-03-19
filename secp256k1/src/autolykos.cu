@@ -219,7 +219,10 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
         // if solution was found by this thread wait for new block to come 
         if (state == STATE_KEYGEN)
         {
-            while (info->blockId.load() == blockId) {}
+            while (info->blockId.load() == blockId) 
+	    {
+	        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	    }
 
             state = STATE_CONTINUE;
         }
@@ -227,7 +230,9 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
         // if proxy is disconnected  wait for connection 
 		while (!info->doJob)
 		{
-			//LOG(INFO) << "GPU " << deviceId << " problem in proxy ";
+		        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+//			LOG(INFO) << "GPU " << deviceId << " problem in proxy ";
 		}
 
         uint_t controlId = info->blockId.load();
