@@ -3,13 +3,12 @@
 
 AutolykosAlg::AutolykosAlg()
 {
-	m_str = new char[64];
-	bound_str = new char[100];
+	m_str = new char[65];
+	bound_str = new char[101];
 	m_n = new uint8_t[NUM_SIZE_8 + NONCE_SIZE_8];
-	p_w_m_n = new uint8_t[PK_SIZE_8 + PK_SIZE_8 + NUM_SIZE_8 + NONCE_SIZE_8];
 	Hinput = new uint8_t[sizeof(uint32_t) + CONST_MES_SIZE_8 + PK_SIZE_8 + NUM_SIZE_8 + PK_SIZE_8];
-	n_str = new char[NONCE_SIZE_4];
-	h_str = new char[HEIGHT_SIZE];
+	n_str = new char[NONCE_SIZE_4 + 1];
+	h_str = new char[HEIGHT_SIZE * 2 + 1];
 
 
 	int tr = sizeof(unsigned long long);
@@ -34,7 +33,12 @@ AutolykosAlg::AutolykosAlg()
 
 AutolykosAlg::~AutolykosAlg()
 {
-
+    delete[] m_str;
+    delete[] bound_str;
+    delete[] m_n;
+    delete[] Hinput;
+    delete[] n_str;
+    delete[] h_str;
 }
 
 

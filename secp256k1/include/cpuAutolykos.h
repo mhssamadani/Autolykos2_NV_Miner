@@ -46,7 +46,8 @@ public:
 
 	AutolykosAlg();
 	~AutolykosAlg();
-	int m_iAlgVer;
+	AutolykosAlg(const AutolykosAlg&) = delete;
+	void operator=(const AutolykosAlg&) = delete;
 	void Blake2b256(const char * in, const int len, uint8_t * output, char * outstr);
 	void GenIdex(const char * in, const int len, uint32_t* index);
 	void hashFn(const char * in, const int len, uint8_t * output);
@@ -61,7 +62,6 @@ private:
 	char *m_str = NULL;
 	char *bound_str = NULL;
 	uint8_t *m_n;
-	uint8_t  *p_w_m_n;
 	uint8_t  *Hinput;
 	char *n_str;
 	char *h_str;
