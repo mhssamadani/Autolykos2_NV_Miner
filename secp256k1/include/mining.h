@@ -26,6 +26,7 @@ void InitMining(
 
 __global__ void BlockMiningStep1(
 
+	const uint32_t n_len,
 	// data:  mes
 	const uint32_t *data,
 
@@ -39,6 +40,8 @@ __global__ void BlockMiningStep1(
 
 );
 __global__ void BlockMiningStep2(
+
+	const uint32_t n_mask,
 	// data:  mes
 	const uint32_t *data,
 	// nonce base
@@ -52,3 +55,4 @@ __global__ void BlockMiningStep2(
 	uint32_t *count,
 	uint32_t *BHashes);
 #endif // MINING_H
+

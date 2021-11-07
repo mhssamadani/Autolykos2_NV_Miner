@@ -1,5 +1,5 @@
 #include "../include/cpuAutolykos.h"
-
+#include "../include/request.h"
 
 AutolykosAlg::AutolykosAlg()
 {
@@ -76,7 +76,7 @@ void AutolykosAlg::Blake2b256(const char * in,
 
 
 
-void AutolykosAlg::GenIdex(const char * in, const int len, uint32_t* index)
+void AutolykosAlg::GenIdex(const char * in, const int len, uint32_t* index, uint64_t N_LEN)
 {
 	int a = INDEX_SIZE_8;
 	int b = K_LEN;
@@ -100,7 +100,6 @@ void AutolykosAlg::GenIdex(const char * in, const int len, uint32_t* index)
 
 	memcpy(sk, beH, NUM_SIZE_8);
 	memcpy(sk + NUM_SIZE_8, beH, NUM_SIZE_8);
-
 
 	uint32_t tmpInd[32];
 	int sliceIndex = 0;
@@ -150,6 +149,7 @@ bool AutolykosAlg::RunAlg(
 
 	uint32_t index[K_LEN];
 	LittleEndianToHexStr(nonce, NONCE_SIZE_8, n_str);
+
 	BigEndianToHexStr(height, HEIGHT_SIZE, h_str);
 	uint8_t beN[NONCE_SIZE_8];
 	HexStrToBigEndian(n_str, NONCE_SIZE_8 * 2, beN, NONCE_SIZE_8);
@@ -175,7 +175,11 @@ bool AutolykosAlg::RunAlg(
 	tmpL1[7] = h1[24];
 	memcpy(&h2, tmpL1, 8);
 
+	uint32_t HH;
+	memcpy(&HH,beH,HEIGHT_SIZE);
+	uint32_t N_LEN = calcN(HH);
 	unsigned int h3 = h2 % N_LEN;
+	
 
 	uint8_t iii[4];
 	iii[0] = ((char *)(&h3))[3];
@@ -191,12 +195,12 @@ bool AutolykosAlg::RunAlg(
 	uint8_t ff[NUM_SIZE_8 - 1];
 	memcpy(ff, h1 + 1, NUM_SIZE_8 - 1);
 
+
 	uint8_t seed[NUM_SIZE_8 - 1 + NUM_SIZE_8 + NONCE_SIZE_8];
 	memcpy(seed, ff, NUM_SIZE_8 - 1);
 	memcpy(seed + NUM_SIZE_8 - 1, message, NUM_SIZE_8);
 	memcpy(seed + NUM_SIZE_8 - 1 + NUM_SIZE_8, beN, NONCE_SIZE_8);
-	GenIdex((const char*)seed, NUM_SIZE_8 - 1 + NUM_SIZE_8 + NONCE_SIZE_8, index);
-
+	GenIdex((const char*)seed, NUM_SIZE_8 - 1 + NUM_SIZE_8 + NONCE_SIZE_8, index,N_LEN);
 
 
 
@@ -312,5 +316,5 @@ bool AutolykosAlg::RunAlg(
 	}
 
 
-
 }
+
