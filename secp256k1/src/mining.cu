@@ -352,7 +352,7 @@ void InitMining(
 __global__ __launch_bounds__(64, 64)
 __global__ void BlockMiningStep1(
 
-
+	const uint32_t n_len,
     // data:  mes  
     const uint32_t * data,
 
@@ -448,7 +448,7 @@ __global__ void BlockMiningStep1(
         ((uint8_t*)&h2)[6] = ((uint8_t*)r)[25];
         ((uint8_t*)&h2)[7] = ((uint8_t*)r)[24];
 
-        h3 = h2 % N_LEN;
+        h3 = h2 % n_len;
 
 #pragma unroll 8
 		for (int i = 0; i < 8; ++i)
@@ -520,6 +520,8 @@ __global__ void BlockMiningStep1(
 
 __global__ __launch_bounds__(64, 64)
 __global__ void BlockMiningStep2(
+
+	const uint32_t  n_len,
     // data:  mes  
     const uint32_t * data,
     // nonce base
@@ -580,10 +582,10 @@ __global__ void BlockMiningStep2(
 #pragma unroll
         for (int k = 0; k < K_LEN; k += 4)
         {
-            ind[k] = r[k >> 2] & N_MASK;
-            ind[k + 1] = ((r[k >> 2] << 8) | (r[(k >> 2) + 1] >> 24)) & N_MASK;
-			ind[k + 2] = ((r[k >> 2] << 16) | (r[(k >> 2) + 1] >> 16)) & N_MASK;
-			ind[k + 3] = ((r[k >> 2] << 24) | (r[(k >> 2) + 1] >> 8)) & N_MASK;
+            ind[k] = r[k >> 2] % n_len;
+            ind[k + 1] = ((r[k >> 2] << 8) | (r[(k >> 2) + 1] >> 24)) % n_len;
+			ind[k + 2] = ((r[k >> 2] << 16) | (r[(k >> 2) + 1] >> 16)) % n_len;
+			ind[k + 3] = ((r[k >> 2] << 24) | (r[(k >> 2) + 1] >> 8)) % n_len;
         }
 
 
@@ -687,7 +689,8 @@ __global__ void BlockMiningStep2(
 
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        //--------------------hash(f)--------------------
+  
+		//--------------------hash(f)--------------------
         //====================================================================//
         //  Initialize context
         //====================================================================//
@@ -771,6 +774,9 @@ __global__ void BlockMiningStep2(
 
                 uint32_t id = atomicInc(count, MAX_SOLS);
 			valid[id] = tid + 1;
+
+
+
            }
 
 
@@ -780,4 +786,5 @@ __global__ void BlockMiningStep2(
 
 
 }
+
 

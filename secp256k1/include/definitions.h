@@ -28,7 +28,12 @@
 #define K_LEN              32
 
 // N: number of precalculated hashes
-#define N_LEN              0x4000000 // 2^26
+#define INIT_N_LEN 0x4000000
+#define MAX_N_LEN  0x7FC9FF98
+#define IncreaseStart (600*1024)
+#define IncreaseEnd (4198400)
+#define IncreasePeriodForN (50*1024)
+
 
 // max solutions found in one iteration
 #define MAX_SOLS 16
@@ -216,8 +221,7 @@ struct ctx_t;
 //============================================================================//
 //  Heuristic CUDA parameters
 //============================================================================//
-// mod 2^26 mask
-#define N_MASK             (N_LEN - 1)
+
 
 // number of threads per iteration
 #define THREADS_PER_ITER   (NONCES_PER_ITER / NONCES_PER_THREAD)
@@ -777,3 +781,4 @@ do {} while ((func) != (status))
 do {} while (((res) = (func)) != (status))
 
 #endif // DEFINITIONS_H
+

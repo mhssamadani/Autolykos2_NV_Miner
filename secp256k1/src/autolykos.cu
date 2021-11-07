@@ -72,7 +72,6 @@ void SenderThread(info_t * info, BlockQueue<MinerShare>* shQueue)
 
 
 }
-
 ////////////////////////////////////////////////////////////////////////////////
 //  Miner thread cycle
 ////////////////////////////////////////////////////////////////////////////////
@@ -155,6 +154,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
     // precalculated hashes
     // N_LEN * NUM_SIZE_8 bytes // 2 GiB
+    uint64_t N_LEN = INIT_N_LEN;
     uint32_t * hashes_d; 
     CUDA_CALL(cudaMalloc(&hashes_d, (uint32_t)N_LEN * NUM_SIZE_8) );
     //LOG(INFO) << "g" << LocalgpuId << " hashes_d: " << hashes_d <<  " ghashes_d[gpuId]: " << ghashes_d[gpuId];
@@ -193,6 +193,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
     start = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
+	uint32_t oldN = INIT_N_LEN;
     do
     {
         ++cntCycles;
@@ -257,6 +258,18 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
             //LOG(INFO) << "gpu: " << deviceId << " base: " << base << " end: " << EndNonce;
             
             memcpy(&height,info->Hblock, HEIGHT_SIZE);
+			N_LEN = calcN(height);
+			if (oldN != N_LEN)
+			{
+				CUDA_CALL(cudaFree(hashes_d));
+				CUDA_CALL(cudaMalloc(&hashes_d, (uint32_t)N_LEN * NUM_SIZE_8) );
+				if (hashes_d == NULL)
+				{
+					LOG(INFO) << "GPU " << deviceId << "error in  allocating hashes_d";
+						return;
+				}
+				oldN = N_LEN;
+			}
 
             info->info_mutex.unlock();
 
@@ -277,7 +290,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
             VLOG(1) << "Starting prehashing with new block data";
 
-            Prehash(hashes_d,height);
+            Prehash(N_LEN,hashes_d,height);
             // calculate unfinalized hash of message
             VLOG(1) << "Starting InitMining";
 			//InitMining(&ctx_h, (uint32_t *)mes_h, NUM_SIZE_8);
@@ -296,8 +309,8 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 
         // calculate solution candidates
         VLOG(1) << "Starting main BlockMining procedure";
-        BlockMiningStep1<<<1 + (THREADS_PER_ITER - 1) / (BLOCK_DIM*4), BLOCK_DIM>>>(data_d, base, hashes_d, BHashes);
-        BlockMiningStep2<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(data_d, base,height, hashes_d, indices_d , count_d,BHashes);
+        BlockMiningStep1<<<1 + (THREADS_PER_ITER - 1) / (BLOCK_DIM*4), BLOCK_DIM>>>(N_LEN,data_d, base, hashes_d, BHashes);
+        BlockMiningStep2<<<1 + (THREADS_PER_ITER - 1) / BLOCK_DIM, BLOCK_DIM>>>(N_LEN,data_d, base,height, hashes_d, indices_d , count_d,BHashes);
         VLOG(1) << "Trying to find solution";
 
         // restart iteration if new block was found
@@ -327,7 +340,6 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 				memcpy(&endNonceT , info->extraNonceEnd , sizeof(uint64_t));
 				if ( (*((uint64_t *)nonce)) <= endNonceT )
 				{
-					//LOG(INFO) << "sol check i: " << i << " sol index: "<< indices_h[i]; 	
 					bool checksol = solVerifier.RunAlg(info->mes,nonce,info->bound,info->Hblock);
 					if (checksol)
 					{
@@ -345,7 +357,7 @@ void MinerThread(const int totalGPUCards, int deviceId, info_t * info, std::vect
 					else
 					{
                         LOG(INFO) << " problem in verify solution, nonce: " << *((uint64_t *)nonce);
-                        //exit(0);
+                     //   exit(0);
 					}
 
                 }
@@ -556,6 +568,7 @@ while (1)
 }
 
 // autolykos.cu
+
 
 
 

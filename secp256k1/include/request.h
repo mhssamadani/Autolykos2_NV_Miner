@@ -13,6 +13,9 @@
 #include <atomic>
 #include <mutex>
 
+
+uint32_t calcN(uint32_t Hblock);
+
 // write function for CURL http GET
 size_t WriteFunc(
     void * ptr,
@@ -62,3 +65,4 @@ int PostPuzzleSolution(
 );
 
 #endif // REQUEST_H
+

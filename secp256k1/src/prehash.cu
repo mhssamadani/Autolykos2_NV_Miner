@@ -159,13 +159,15 @@ __device__ __forceinline__ void BlakeCompress(uint64_t  *h, const uint64_t  *m, 
 //  Precalculate hashes
 ////////////////////////////////////////////////////////////////////////////////
 int Prehash(
+	uint64_t N_LEN ,
 	uint32_t * hashes,
 	uint32_t  height
 )
 {
 
+	
 	InitPrehash << <1 + (N_LEN - 1) / BLOCK_DIM, BLOCK_DIM >> > (
-		height, hashes
+		N_LEN,height, hashes
 		);
 	CUDA_CALL(cudaPeekAtLastError());
 
@@ -173,6 +175,7 @@ int Prehash(
 
 }
 __global__ void InitPrehash(
+	const uint32_t  n_len,
 	// height
 	const uint32_t  height,
 	// hashes
@@ -184,7 +187,7 @@ __global__ void InitPrehash(
 	tid += blockDim.x * blockIdx.x;
 
 
-	if (tid < N_LEN)
+	if (tid < n_len)
 	{
 
 		//====================================================================//
@@ -247,12 +250,12 @@ __global__ void InitPrehash(
 #pragma unroll
 		for (int i = 0; i < 4; ++i) store64(&(((uint64_t *)hashes)[(tid + 1) * 4 - i - 1]), h[i]);
 		((uint8_t *)hashes)[tid * 32 + 31] = 0;
-
 	}
 
 	return;
 }
 // prehash.cu
+
 
 
 
