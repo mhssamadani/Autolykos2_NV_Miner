@@ -247,7 +247,7 @@ __global__ void InitPrehash(
 		//  Dump result to global memory -- BIG ENDIAN
 		//====================================================================//
 
-#pragma unroll
+#pragma unroll 1
 		for (int i = 0; i < 4; ++i) store64(&(((uint64_t *)hashes)[(tid + 1) * 4 - i - 1]), h[i]);
 		((uint8_t *)hashes)[tid * 32 + 31] = 0;
 	}
